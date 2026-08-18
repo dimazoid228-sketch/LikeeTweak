@@ -1,12 +1,10 @@
 #import <UIKit/UIKit.h>
 
-@interface LikeeTweakTest : NSObject
-+ (void)showTest;
-@end
+__attribute__((constructor))
+static void LikeeTweakLoaded(void) {
+    
+    NSLog(@"[LikeeTweak] DYLIB LOADED");
 
-@implementation LikeeTweakTest
-
-+ (void)showTest {
     dispatch_async(dispatch_get_main_queue(), ^{
         
         UIWindow *window = nil;
@@ -16,17 +14,17 @@
                 
                 if (scene.activationState != UISceneActivationStateForegroundActive)
                     continue;
-                
+
                 if (![scene isKindOfClass:[UIWindowScene class]])
                     continue;
-                
+
                 for (UIWindow *candidate in ((UIWindowScene *)scene).windows) {
                     if (candidate.isKeyWindow) {
                         window = candidate;
                         break;
                     }
                 }
-                
+
                 if (window)
                     break;
             }
@@ -35,8 +33,10 @@
         if (!window)
             window = UIApplication.sharedApplication.keyWindow;
 
-        if (!window)
+        if (!window) {
+            NSLog(@"[LikeeTweak] NO WINDOW");
             return;
+        }
 
         UIViewController *vc = window.rootViewController;
 
@@ -45,7 +45,7 @@
 
         UIAlertController *alert =
             [UIAlertController alertControllerWithTitle:@"LikeeTweak"
-                                                message:@"Твик реально загрузился!"
+                                                message:@"DYLIB загружен!"
                                          preferredStyle:UIAlertControllerStyleAlert];
 
         [alert addAction:
@@ -53,32 +53,10 @@
                                      style:UIAlertActionStyleDefault
                                    handler:nil]];
 
-        [vc presentViewController:alert animated:YES completion:nil];
+        [vc presentViewController:alert
+                         animated:YES
+                       completion:nil];
 
-        NSLog(@"[LikeeTweak] TEST SUCCESS");
+        NSLog(@"[LikeeTweak] ALERT SHOWN");
     });
 }
-
-@end
-
-
-%hook UIApplication
-
-- (void)applicationDidBecomeActive:(UIApplication *)application {
-    %orig;
-
-    static BOOL alreadyShown = NO;
-
-    if (!alreadyShown) {
-        alreadyShown = YES;
-
-        dispatch_after(
-            dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC),
-            dispatch_get_main_queue(), ^{
-                [LikeeTweakTest showTest];
-            }
-        );
-    }
-}
-
-%end
