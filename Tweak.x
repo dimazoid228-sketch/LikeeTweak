@@ -1,15 +1,21 @@
 #import <UIKit/UIKit.h>
 
 @interface LikeeTweakTest : NSObject
+
 @property (nonatomic, strong) UIButton *button;
+
 + (instancetype)sharedInstance;
+
 - (void)installButton;
 - (void)buttonTapped:(UIButton *)sender;
+
 @end
+
 
 @implementation LikeeTweakTest
 
 + (instancetype)sharedInstance {
+
     static LikeeTweakTest *instance;
     static dispatch_once_t onceToken;
 
@@ -19,6 +25,7 @@
 
     return instance;
 }
+
 
 - (void)installButton {
 
@@ -68,6 +75,7 @@
             return;
         }
 
+
         UIButton *button =
             [UIButton buttonWithType:UIButtonTypeSystem];
 
@@ -77,6 +85,7 @@
             50.0,
             50.0
         );
+
 
         [button setTitle:@"LT"
                 forState:UIControlStateNormal];
@@ -90,25 +99,54 @@
         button.layer.cornerRadius = 25.0;
         button.layer.masksToBounds = YES;
 
+
         [button addTarget:self
                    action:@selector(buttonTapped:)
          forControlEvents:UIControlEventTouchUpInside];
+
+
+        UIPanGestureRecognizer *pan =
+            [[UIPanGestureRecognizer alloc]
+                initWithTarget:self
+                        action:@selector(buttonDragged:)];
+
+        [button addGestureRecognizer:pan];
+
 
         [window addSubview:button];
 
         self.button = button;
 
-        NSLog(@"[LikeeTweak] BUTTON INSTALLED");
+        NSLog(@"[LikeeTweak] DRAGGABLE BUTTON INSTALLED");
     });
 }
+
+
+- (void)buttonDragged:(UIPanGestureRecognizer *)gesture {
+
+    UIView *button = gesture.view;
+
+    CGPoint translation =
+        [gesture translationInView:button.superview];
+
+    button.center = CGPointMake(
+        button.center.x + translation.x,
+        button.center.y + translation.y
+    );
+
+    [gesture setTranslation:CGPointZero
+                    inView:button.superview];
+}
+
 
 - (void)buttonTapped:(UIButton *)sender {
 
     UIAlertController *alert =
         [UIAlertController
             alertControllerWithTitle:@"LikeeTweak"
-                             message:@"Тестовая кнопка работает!"
+                             message:@"Кнопка работает!"
                       preferredStyle:UIAlertControllerStyleAlert];
+
 
     [alert addAction:
         [UIAlertAction
@@ -116,12 +154,15 @@
                      style:UIAlertActionStyleDefault
                    handler:nil]];
 
+
     UIViewController *controller =
         UIApplication.sharedApplication.keyWindow.rootViewController;
+
 
     while (controller.presentedViewController) {
         controller = controller.presentedViewController;
     }
+
 
     [controller presentViewController:alert
                              animated:YES
@@ -137,10 +178,13 @@
 
     dispatch_after(
         dispatch_time(DISPATCH_TIME_NOW,
-                      3 * NSEC_PER_SEC),
+                      3* NSEC_PER_SEC),
         dispatch_get_main_queue(),
         ^{
-            [[LikeeTweakTest sharedInstance] installButton];
+
+            [[LikeeTweakTest sharedInstance]
+                installButton];
+
         }
     );
 }
