@@ -1,4 +1,4 @@
-#import <UIKit/UIKit.h>
+ #import <UIKit/UIKit.h>
 
 @interface LikeeTweakMenu : NSObject
 
@@ -749,9 +749,6 @@
 
 - (void)menuDragged:(UIPanGestureRecognizer *)gesture
 {
-    UIView *header = gesture.view;
-
-
     CGPoint translation =
         [gesture translationInView:self.window];
 
