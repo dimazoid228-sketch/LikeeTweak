@@ -1,122 +1,62 @@
 #import <UIKit/UIKit.h>
 
-@interface LikeeTweakMenu : NSObject
-
-@property (nonatomic, strong) UIButton *button;
-
-+ (instancetype)sharedMenu;
-- (void)showButton;
-- (void)buttonPressed:(UIButton *)sender;
-
+@interface LikeeTweakTest : NSObject
++ (void)showTest;
 @end
 
-@implementation LikeeTweakMenu
+@implementation LikeeTweakTest
 
-+ (instancetype)sharedMenu {
-    static LikeeTweakMenu *menu;
-    static dispatch_once_t onceToken;
++ (void)showTest {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        
+        UIWindow *window = nil;
 
-    dispatch_once(&onceToken, ^{
-        menu = [[LikeeTweakMenu alloc] init];
-    });
-
-    return menu;
-}
-
-- (void)showButton {
-
-    if (self.button != nil) {
-        return;
-    }
-
-    UIWindow *window = nil;
-
-    if (@available(iOS 13.0, *)) {
-
-        for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
-
-            if (scene.activationState != UISceneActivationStateForegroundActive) {
-                continue;
-            }
-
-            if (![scene isKindOfClass:[UIWindowScene class]]) {
-                continue;
-            }
-
-            for (UIWindow *candidate in ((UIWindowScene *)scene).windows) {
-
-                if (candidate.isKeyWindow) {
-                    window = candidate;
-                    break;
+        if (@available(iOS 13.0, *)) {
+            for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+                
+                if (scene.activationState != UISceneActivationStateForegroundActive)
+                    continue;
+                
+                if (![scene isKindOfClass:[UIWindowScene class]])
+                    continue;
+                
+                for (UIWindow *candidate in ((UIWindowScene *)scene).windows) {
+                    if (candidate.isKeyWindow) {
+                        window = candidate;
+                        break;
+                    }
                 }
-            }
-
-            if (window != nil) {
-                break;
+                
+                if (window)
+                    break;
             }
         }
-    }
 
-    if (window == nil) {
-        window = UIApplication.sharedApplication.keyWindow;
-    }
+        if (!window)
+            window = UIApplication.sharedApplication.keyWindow;
 
-    if (window == nil) {
-        NSLog(@"[LikeeTweak] Window not found");
-        return;
-    }
+        if (!window)
+            return;
 
-    UIButton *button = [UIButton buttonWithType:UIButtonTypeSystem];
+        UIViewController *vc = window.rootViewController;
 
-    button.frame = CGRectMake(
-        window.bounds.size.width - 65.0,
-        window.bounds.size.height / 2.0 - 25.0,
-        50.0,
-        50.0
-    );
+        while (vc.presentedViewController)
+            vc = vc.presentedViewController;
 
-    [button setTitle:@"LT" forState:UIControlStateNormal];
-    [button setTitleColor:UIColor.whiteColor
-                 forState:UIControlStateNormal];
+        UIAlertController *alert =
+            [UIAlertController alertControllerWithTitle:@"LikeeTweak"
+                                                message:@"Твик реально загрузился!"
+                                         preferredStyle:UIAlertControllerStyleAlert];
 
-    button.backgroundColor =
-        [UIColor colorWithWhite:0.0 alpha:0.75];
+        [alert addAction:
+            [UIAlertAction actionWithTitle:@"OK"
+                                     style:UIAlertActionStyleDefault
+                                   handler:nil]];
 
-    button.layer.cornerRadius = 25.0;
-    button.layer.masksToBounds = YES;
+        [vc presentViewController:alert animated:YES completion:nil];
 
-    [button addTarget:self
-               action:@selector(buttonPressed:)
-     forControlEvents:UIControlEventTouchUpInside];
-
-    [window addSubview:button];
-
-    self.button = button;
-
-    NSLog(@"[LikeeTweak] Floating button loaded");
-}
-
-- (void)buttonPressed:(UIButton *)sender {
-
-    UIAlertController *alert =
-        [UIAlertController alertControllerWithTitle:@"LikeeTweak"
-                                            message:@"Меню твика работает!"
-                                     preferredStyle:UIAlertControllerStyleAlert];
-
-    [alert addAction:
-        [UIAlertAction actionWithTitle:@"OK"
-                                 style:UIAlertActionStyleDefault
-                               handler:nil]];
-
-    UIViewController *rootViewController =
-        UIApplication.sharedApplication.keyWindow.rootViewController;
-
-    if (rootViewController != nil) {
-
-        [rootViewController presentViewController:alert
-                                         animated:YES
-                                       completion:nil];
-    }
+        NSLog(@"[LikeeTweak] TEST SUCCESS");
+    });
 }
 
 @end
@@ -125,14 +65,20 @@
 %hook UIApplication
 
 - (void)applicationDidBecomeActive:(UIApplication *)application {
-
     %orig;
 
-    dispatch_async(dispatch_get_main_queue(), ^{
+    static BOOL alreadyShown = NO;
 
-        [[LikeeTweakMenu sharedMenu] showButton];
+    if (!alreadyShown) {
+        alreadyShown = YES;
 
-    });
+        dispatch_after(
+            dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC),
+            dispatch_get_main_queue(), ^{
+                [LikeeTweakTest showTest];
+            }
+        );
+    }
 }
 
 %end
