@@ -1,0 +1,8 @@
+Package: com.likeetweak.myfirsttweak
+Name: LikeeTweak
+Version: 0.1
+Architecture: iphoneos-arm64
+Description: My first Likee tweak
+Maintainer: LikeeTweak
+Author: LikeeTweak
+Section: Tweaks
