@@ -377,7 +377,7 @@
         icon:@"◈"
         key:@"LikeeTweakHideUI"
         y:212.0
-        menu:scroll;
+        menu:scroll];
     UILabel *section3 =
         [[UILabel alloc]
             initWithFrame:
@@ -399,7 +399,7 @@
         icon:@"✦"
         key:@"LikeeTweakAdFilter"
         y:290.0
-        menu:scroll;
+        menu:scroll];
     UILabel *future =
         [[UILabel alloc]
             initWithFrame:
