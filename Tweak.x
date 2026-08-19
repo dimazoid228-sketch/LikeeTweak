@@ -544,7 +544,7 @@
         icon:@"✦"
         key:@"LikeeTweakAdFilter"
         y:290.0
-        menu:scroll];
+        menu:scroll;
 
 
     UILabel *future =
@@ -842,6 +842,12 @@
         );
 
 
+    Class style1Class =
+        NSClassFromString(
+            @"BVVideoDetailAdStyle1CardView"
+        );
+
+
     Class imageClass =
         NSClassFromString(
             @"BGServerAdImageView"
@@ -852,6 +858,14 @@
 
         NSLog(
             @"[LikeeTweak] BVVideoDetailAdCardView not found"
+        );
+    }
+
+
+    if (style1Class == Nil) {
+
+        NSLog(
+            @"[LikeeTweak] BVVideoDetailAdStyle1CardView not found"
         );
     }
 
@@ -872,6 +886,15 @@
             [self updateSubviews:
                         window
                         adClass:cardClass
+                         hidden:enabled];
+        }
+
+
+        if (style1Class != Nil) {
+
+            [self updateSubviews:
+                        window
+                        adClass:style1Class
                          hidden:enabled];
         }
 
@@ -1057,6 +1080,77 @@
 
         NSLog(
             @"[LikeeTweak] BVVideoDetailAdCardView hidden"
+        );
+    }
+}
+
+- (void)didMoveToWindow
+{
+    %orig;
+
+    BOOL enabled =
+        [[NSUserDefaults standardUserDefaults]
+            boolForKey:@"LikeeTweakAdFilter"];
+
+
+    if (enabled) {
+
+        [(UIView *)self setHidden:YES];
+
+        NSLog(
+            @"[LikeeTweak] BVVideoDetailAdCardView appeared -> hidden"
+        );
+    }
+}
+
+%end
+
+
+#pragma mark - Advertisement Style 1 Hook
+
+%hook BVVideoDetailAdStyle1CardView
+
+- (void)didMoveToWindow
+{
+    %orig;
+
+    BOOL enabled =
+        [[NSUserDefaults standardUserDefaults]
+            boolForKey:@"LikeeTweakAdFilter"];
+
+
+    if (enabled) {
+
+        [(UIView *)self setHidden:YES];
+
+        NSLog(
+            @"[LikeeTweak] BVVideoDetailAdStyle1CardView appeared -> hidden"
+        );
+    }
+}
+
+%end
+
+
+#pragma mark - Advertisement Image Hook
+
+%hook BGServerAdImageView
+
+- (void)didMoveToWindow
+{
+    %orig;
+
+    BOOL enabled =
+        [[NSUserDefaults standardUserDefaults]
+            boolForKey:@"LikeeTweakAdFilter"];
+
+
+    if (enabled) {
+
+        [(UIView *)self setHidden:YES];
+
+        NSLog(
+            @"[LikeeTweak] BGServerAdImageView appeared -> hidden"
         );
     }
 }
