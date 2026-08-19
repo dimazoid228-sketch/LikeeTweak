@@ -31,9 +31,7 @@
                  menu:(UIView *)menu;
 
 - (void)updateAdCards;
-- (void)updateSubviews:(UIView *)view
-               adClass:(Class)adClass
-                hidden:(BOOL)hidden;
+- (void)scanView:(UIView *)view;
 
 - (void)startAdTimer;
 - (void)stopAdTimer;
@@ -67,7 +65,6 @@
                            alpha:1.0];
 }
 
-
 - (UIColor *)lightPurpleColor
 {
     return [UIColor colorWithRed:0.65
@@ -76,7 +73,6 @@
                            alpha:1.0];
 }
 
-
 - (UIColor *)darkPurpleColor
 {
     return [UIColor colorWithRed:0.055
@@ -84,7 +80,6 @@
                             blue:0.09
                            alpha:0.97];
 }
-
 
 - (UIColor *)itemColor
 {
@@ -265,7 +260,6 @@
             - height
             - 20.0;
     }
-
 
     UIView *overlay =
         [[UIView alloc]
@@ -567,7 +561,8 @@
                 )];
 
     future.text =
-        @"Новые функции будут\nдобавляться сюда";
+        @"Сканирование рекламы каждые 0,5 сек.\n"
+         "Фильтр работает в ленте";
 
     future.numberOfLines = 2;
 
@@ -684,47 +679,6 @@
     [textClip addSubview:label];
 
 
-    CGFloat textWidth =
-        [title sizeWithAttributes:
-            @{NSFontAttributeName:
-                [UIFont systemFontOfSize:13.0]}].width;
-
-
-    if (textWidth > 104.0) {
-
-        CGFloat distance =
-            textWidth - 104.0;
-
-
-        label.frame =
-            CGRectMake(
-                0.0,
-                0.0,
-                textWidth + 10.0,
-                40.0
-            );
-
-
-        [UIView animateWithDuration:
-            MAX(5.0, distance / 7.0)
-            delay:1.0
-            options:
-                UIViewAnimationOptionAutoreverse |
-                UIViewAnimationOptionRepeat |
-                UIViewAnimationOptionCurveEaseInOut
-            animations:^{
-
-                label.transform =
-                    CGAffineTransformMakeTranslation(
-                        -distance,
-                        0.0
-                    );
-
-            }
-            completion:nil];
-    }
-
-
     UISwitch *toggle =
         [[UISwitch alloc]
             initWithFrame:
@@ -830,10 +784,13 @@
     if ([key isEqualToString:@"LikeeTweakAdFilter"]) {
 
         if (enabled) {
+
             [self startAdTimer];
+
             [self updateAdCards];
         }
         else {
+
             [self stopAdTimer];
         }
     }
@@ -846,7 +803,6 @@
 {
     [self stopAdTimer];
 
-
     self.adTimer =
         [NSTimer scheduledTimerWithTimeInterval:0.5
                                          target:self
@@ -854,8 +810,7 @@
                                        userInfo:nil
                                         repeats:YES];
 
-
-    NSLog(@"[LikeeTweak] Advertisement scanner started");
+    NSLog(@"[LikeeTweak] Advertisement scanner STARTED");
 }
 
 
@@ -867,13 +822,23 @@
 
         self.adTimer = nil;
 
-        NSLog(@"[LikeeTweak] Advertisement scanner stopped");
+        NSLog(@"[LikeeTweak] Advertisement scanner STOPPED");
     }
 }
 
 
 - (void)updateAdCards
 {
+    if (![NSThread isMainThread]) {
+
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self updateAdCards];
+        });
+
+        return;
+    }
+
+
     BOOL enabled =
         [[NSUserDefaults standardUserDefaults]
             boolForKey:@"LikeeTweakAdFilter"];
@@ -884,81 +849,136 @@
     }
 
 
-    Class cardClass =
-        NSClassFromString(
-            @"BVVideoDetailAdCardView"
-        );
+    NSArray *windows =
+        UIApplication.sharedApplication.windows;
 
 
-    Class style1Class =
-        NSClassFromString(
-            @"LIKE.BVVideoDetailAdStyle1CardView"
-        );
+    for (UIWindow *window in windows) {
 
-
-    Class imageClass =
-        NSClassFromString(
-            @"BGServerAdImageView"
-        );
-
-
-    for (UIWindow *window in
-         UIApplication.sharedApplication.windows) {
-
-
-        if (cardClass != Nil) {
-
-            [self updateSubviews:
-                        window
-                        adClass:cardClass
-                         hidden:YES];
+        if (window == self.window) {
+            continue;
         }
 
-
-        if (style1Class != Nil) {
-
-            [self updateSubviews:
-                        window
-                        adClass:style1Class
-                         hidden:YES];
-        }
+        [self scanView:window];
+    }
 
 
-        if (imageClass != Nil) {
-
-            [self updateSubviews:
-                        window
-                        adClass:imageClass
-                         hidden:YES];
-        }
+    if (self.window != nil) {
+        [self scanView:self.window];
     }
 }
 
 
-- (void)updateSubviews:(UIView *)view
-               adClass:(Class)adClass
-                hidden:(BOOL)hidden
+#pragma mark - Recursive Advertisement Scanner
+
+- (void)scanView:(UIView *)view
 {
-    if ([view isKindOfClass:adClass]) {
+    if (view == nil) {
+        return;
+    }
 
-        view.hidden = hidden;
 
-        NSLog(
-            @"[LikeeTweak] %@ -> %@",
-            NSStringFromClass(adClass),
-            hidden ? @"HIDDEN" : @"VISIBLE"
-        );
+    NSString *className =
+        NSStringFromClass([view class]);
+
+
+    /*
+     * Точные рекламные UIView,
+     * которые мы уже нашли через Flex.
+     */
+
+    NSArray *exactClasses = @[
+        @"BVVideoDetailAdCardView",
+        @"LIKE.BVVideoDetailAdStyle1CardView",
+        @"BVVideoDetailGoogleAdInfoView",
+        @"BGServerAdImageView"
+    ];
+
+
+    BOOL isKnownAdView = NO;
+
+
+    for (NSString *name in exactClasses) {
+
+        if ([className isEqualToString:name]) {
+
+            isKnownAdView = YES;
+            break;
+        }
+    }
+
+
+    /*
+     * Дополнительный фильтр.
+     *
+     * Мы НЕ скрываем любой объект с "Ad",
+     * потому что внутри Likee есть много
+     * невизуальных AdTracker / VastConfig.
+     *
+     * Здесь проверяем именно UIView,
+     * связанный с BG/BV/Native/Video.
+     */
+
+    BOOL looksLikeAdView = NO;
+
+
+    if ([className hasPrefix:@"BGServer"] &&
+        [className rangeOfString:@"Ad"
+                         options:NSCaseInsensitiveSearch].location != NSNotFound) {
+
+        looksLikeAdView = YES;
+    }
+
+
+    if ([className hasPrefix:@"BV"] &&
+        [className rangeOfString:@"Ad"
+                         options:NSCaseInsensitiveSearch].location != NSNotFound) {
+
+        looksLikeAdView = YES;
+    }
+
+
+    if ([className rangeOfString:@"NativeAd"
+                         options:NSCaseInsensitiveSearch].location != NSNotFound) {
+
+        looksLikeAdView = YES;
+    }
+
+
+    if ([className rangeOfString:@"VideoAd"
+                         options:NSCaseInsensitiveSearch].location != NSNotFound) {
+
+        looksLikeAdView = YES;
+    }
+
+
+    if (isKnownAdView || looksLikeAdView) {
+
+        if (!view.hidden) {
+
+            view.hidden = YES;
+
+            NSLog(
+                @"[LikeeTweak][AD BLOCK] %@",
+                className
+            );
+        }
 
         return;
     }
 
 
-    for (UIView *subview in view.subviews) {
+    /*
+     * Продолжаем обход дочерних UIView.
+     */
 
-        [self updateSubviews:
-                    subview
-                    adClass:adClass
-                     hidden:hidden];
+    NSArray *subviews =
+        [view.subviews copy];
+
+
+    for (UIView *subview in subviews) {
+
+        [self scanView:subview];
     }
 }
 
