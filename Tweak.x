@@ -926,8 +926,7 @@
     }];
 }
 @end
-#pragma mark - Constructor
-%ctor
+
 %hook BGServerAdVideoPlayView
 
 - (void)startAd
@@ -937,6 +936,10 @@
 }
 
 %end
+
+#pragma mark - Constructor
+
+%ctor
 {
     NSLog(@"[LikeeTweak] CONSTRUCTOR");
     dispatch_after(
