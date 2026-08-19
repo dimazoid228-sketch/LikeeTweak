@@ -1,6 +1,6 @@
 ARCHS = arm64e
 
-include $(THEOS)/makefile/common.mk
+include $(THEOS)/makefiles/common.mk
 
 TWEAK_NAME = MyFirstTweak
 
