@@ -1,4 +1,4 @@
- #import <UIKit/UIKit.h>
+#import <UIKit/UIKit.h>
 
 @interface LikeeTweakMenu : NSObject
 
@@ -6,6 +6,7 @@
 @property (nonatomic, strong) UIView *menuView;
 @property (nonatomic, strong) UIView *menuHeader;
 @property (nonatomic, strong) UIView *overlay;
+@property (nonatomic, strong) UIScrollView *scrollView;
 @property (nonatomic, strong) UIWindow *window;
 
 + (instancetype)sharedInstance;
@@ -20,10 +21,15 @@
 - (void)closeButtonTapped:(UIButton *)sender;
 - (void)menuDragged:(UIPanGestureRecognizer *)gesture;
 
+- (void)switchChanged:(UISwitch *)sender;
+
 - (void)addSwitchItem:(NSString *)title
                  icon:(NSString *)icon
+                  key:(NSString *)key
                     y:(CGFloat)y
                   menu:(UIView *)menu;
+
+- (void)updateAdCards;
 
 @end
 
@@ -94,9 +100,7 @@
             return;
         }
 
-
         UIWindow *window = nil;
-
 
         if (@available(iOS 13.0, *)) {
 
@@ -108,22 +112,18 @@
                     continue;
                 }
 
-
                 if (![scene isKindOfClass:[UIWindowScene class]]) {
                     continue;
                 }
-
 
                 for (UIWindow *candidate in
                      ((UIWindowScene *)scene).windows) {
 
                     if (candidate.isKeyWindow) {
-
                         window = candidate;
                         break;
                     }
                 }
-
 
                 if (window != nil) {
                     break;
@@ -131,19 +131,15 @@
             }
         }
 
-
         if (window == nil) {
-            window =
-                UIApplication.sharedApplication.keyWindow;
+            window = UIApplication.sharedApplication.keyWindow;
         }
-
 
         if (window == nil) {
 
             NSLog(@"[LikeeTweak] Window not found");
             return;
         }
-
 
         self.window = window;
 
@@ -201,6 +197,7 @@
                 initWithTarget:self
                         action:@selector(buttonDragged:)];
 
+
         [button addGestureRecognizer:pan];
 
 
@@ -246,11 +243,9 @@
 - (void)buttonTapped:(UIButton *)sender
 {
     if (self.menuView != nil) {
-
         [self hideMenu];
     }
     else {
-
         [self showMenu];
     }
 }
@@ -355,6 +350,11 @@
     self.menuView = menu;
 
 
+    /*
+     HEADER
+     */
+
+
     UIView *header =
         [[UIView alloc]
             initWithFrame:
@@ -381,6 +381,7 @@
         [[UIPanGestureRecognizer alloc]
             initWithTarget:self
                     action:@selector(menuDragged:)];
+
 
     [header addGestureRecognizer:menuPan];
 
@@ -499,12 +500,52 @@
     [menu addSubview:line];
 
 
+    /*
+     SCROLL VIEW
+     */
+
+
+    UIScrollView *scroll =
+        [[UIScrollView alloc]
+            initWithFrame:
+                CGRectMake(
+                    0.0,
+                    82.0,
+                    width,
+                    height - 82.0
+                )];
+
+
+    scroll.backgroundColor =
+        [UIColor clearColor];
+
+
+    scroll.showsVerticalScrollIndicator = YES;
+
+
+    scroll.alwaysBounceVertical = YES;
+
+
+    scroll.directionalLockEnabled = YES;
+
+
+    [menu addSubview:scroll];
+
+
+    self.scrollView = scroll;
+
+
+    /*
+     SECTION 1
+     */
+
+
     UILabel *section1 =
         [[UILabel alloc]
             initWithFrame:
                 CGRectMake(
                     20.0,
-                    94.0,
+                    12.0,
                     width - 40.0,
                     22.0
                 )];
@@ -523,21 +564,28 @@
         [UIFont boldSystemFontOfSize:11.0];
 
 
-    [menu addSubview:section1];
+    [scroll addSubview:section1];
 
 
     [self addSwitchItem:
             @"Информация об эфире"
                        icon:@"●"
-                          y:120.0
-                        menu:menu];
+                        key:@"LikeeTweakLiveInfo"
+                          y:38.0
+                        menu:scroll];
 
 
     [self addSwitchItem:
             @"Показывать модераторов"
                        icon:@"★"
-                          y:168.0
-                        menu:menu];
+                        key:@"LikeeTweakModerators"
+                          y:86.0
+                        menu:scroll];
+
+
+    /*
+     SECTION 2
+     */
 
 
     UILabel *section2 =
@@ -545,7 +593,7 @@
             initWithFrame:
                 CGRectMake(
                     20.0,
-                    220.0,
+                    138.0,
                     width - 40.0,
                     22.0
                 )];
@@ -564,21 +612,28 @@
         [UIFont boldSystemFontOfSize:11.0];
 
 
-    [menu addSubview:section2];
+    [scroll addSubview:section2];
 
 
     [self addSwitchItem:
             @"Компактный интерфейс"
                        icon:@"◆"
-                          y:246.0
-                        menu:menu];
+                        key:@"LikeeTweakCompact"
+                          y:164.0
+                        menu:scroll];
 
 
     [self addSwitchItem:
             @"Скрыть лишние элементы"
                        icon:@"◈"
-                          y:294.0
-                        menu:menu];
+                        key:@"LikeeTweakHideUI"
+                          y:212.0
+                        menu:scroll];
+
+
+    /*
+     SECTION 3
+     */
 
 
     UILabel *section3 =
@@ -586,7 +641,7 @@
             initWithFrame:
                 CGRectMake(
                     20.0,
-                    346.0,
+                    264.0,
                     width - 40.0,
                     22.0
                 )];
@@ -605,14 +660,68 @@
         [UIFont boldSystemFontOfSize:11.0];
 
 
-    [menu addSubview:section3];
+    [scroll addSubview:section3];
 
 
     [self addSwitchItem:
-            @"Фильтр рекомендаций"
+            @"Фильтр рекламы"
                        icon:@"✦"
-                          y:372.0
-                        menu:menu];
+                        key:@"LikeeTweakAdFilter"
+                          y:290.0
+                        menu:scroll];
+
+
+    /*
+     НИЖНЯЯ ЧАСТЬ
+     */
+
+
+    UILabel *future =
+        [[UILabel alloc]
+            initWithFrame:
+                CGRectMake(
+                    20.0,
+                    345.0,
+                    width - 40.0,
+                    55.0
+                )];
+
+
+    future.text =
+        @"Новые функции будут\nдобавляться сюда";
+
+
+    future.numberOfLines = 2;
+
+
+    future.textColor =
+        [[UIColor whiteColor]
+            colorWithAlphaComponent:0.30];
+
+
+    future.font =
+        [UIFont systemFontOfSize:11.0];
+
+
+    [scroll addSubview:future];
+
+
+    /*
+     Делаем контент выше самого окна,
+     чтобы UIScrollView реально листался.
+     */
+
+
+    scroll.contentSize =
+        CGSizeMake(
+            width,
+            430.0
+        );
+
+
+    /*
+     ANIMATION
+     */
 
 
     menu.alpha = 0.0;
@@ -641,6 +750,7 @@
 
 - (void)addSwitchItem:(NSString *)title
                  icon:(NSString *)icon
+                  key:(NSString *)key
                     y:(CGFloat)y
                   menu:(UIView *)menu
 {
@@ -696,7 +806,7 @@
                 CGRectMake(
                     42.0,
                     0.0,
-                    container.bounds.size.width - 105.0,
+                    125.0,
                     40.0
                 )];
 
@@ -719,14 +829,19 @@
         [[UISwitch alloc]
             initWithFrame:
                 CGRectMake(
-                    container.bounds.size.width - 58.0,
+                    container.bounds.size.width - 59.0,
                     5.0,
                     48.0,
                     30.0
                 )];
 
 
-    toggle.on = NO;
+    BOOL enabled =
+        [[NSUserDefaults standardUserDefaults]
+            boolForKey:key];
+
+
+    toggle.on = enabled;
 
 
     toggle.onTintColor =
@@ -740,7 +855,177 @@
         );
 
 
+    toggle.accessibilityIdentifier =
+        key;
+
+
+    [toggle addTarget:self
+               action:@selector(switchChanged:)
+     forControlEvents:UIControlEventValueChanged];
+
+
     [container addSubview:toggle];
+
+
+    /*
+     Маленький ON / OFF
+     */
+
+
+    UILabel *state =
+        [[UILabel alloc]
+            initWithFrame:
+                CGRectMake(
+                    container.bounds.size.width - 94.0,
+                    11.0,
+                    30.0,
+                    18.0
+                )];
+
+
+    state.text =
+        enabled ? @"ON" : @"OFF";
+
+
+    state.textAlignment =
+        NSTextAlignmentCenter;
+
+
+    state.font =
+        [UIFont boldSystemFontOfSize:8.0];
+
+
+    state.textColor =
+        enabled
+        ? [self lightPurpleColor]
+        : [[UIColor whiteColor]
+            colorWithAlphaComponent:0.30];
+
+
+    state.tag = 9001;
+
+
+    [container addSubview:state];
+}
+
+
+#pragma mark - Switch Changed
+
+
+- (void)switchChanged:(UISwitch *)sender
+{
+    NSString *key =
+        sender.accessibilityIdentifier;
+
+
+    BOOL enabled =
+        sender.isOn;
+
+
+    [[NSUserDefaults standardUserDefaults]
+        setBool:enabled
+        forKey:key];
+
+
+    [[NSUserDefaults standardUserDefaults]
+        synchronize];
+
+
+    UIView *container =
+        sender.superview;
+
+
+    UILabel *state =
+        [container viewWithTag:9001];
+
+
+    if (state != nil) {
+
+        state.text =
+            enabled ? @"ON" : @"OFF";
+
+
+        state.textColor =
+            enabled
+            ? [self lightPurpleColor]
+            : [[UIColor whiteColor]
+                colorWithAlphaComponent:0.30];
+    }
+
+
+    /*
+     Первая настоящая функция
+     */
+
+
+    if ([key isEqualToString:
+                  @"LikeeTweakAdFilter"]) {
+
+        [self updateAdCards];
+    }
+}
+
+
+#pragma mark - Update Advertisement Cards
+
+
+- (void)updateAdCards
+{
+    BOOL enabled =
+        [[NSUserDefaults standardUserDefaults]
+            boolForKey:@"LikeeTweakAdFilter"];
+
+
+    Class adClass =
+        NSClassFromString(
+            @"BVVideoDetailAdCardView"
+        );
+
+
+    if (adClass == Nil) {
+
+        NSLog(
+            @"[LikeeTweak] BVVideoDetailAdCardView not found"
+        );
+
+        return;
+    }
+
+
+    for (UIWindow *window in
+         UIApplication.sharedApplication.windows) {
+
+        [self updateSubviews:
+                    window
+                    adClass:adClass
+                     hidden:enabled];
+    }
+}
+
+
+- (void)updateSubviews:(UIView *)view
+               adClass:(Class)adClass
+                hidden:(BOOL)hidden
+{
+    if ([view isKindOfClass:adClass]) {
+
+        view.hidden = hidden;
+
+
+        NSLog(
+            @"[LikeeTweak] BVVideoDetailAdCardView %@",
+            hidden ? @"HIDDEN" : @"VISIBLE"
+        );
+    }
+
+
+    for (UIView *subview in view.subviews) {
+
+        [self updateSubviews:
+                    subview
+                    adClass:adClass
+                     hidden:hidden];
+    }
 }
 
 
@@ -769,8 +1054,11 @@
         self.menuView.bounds.size.height / 2.0;
 
 
-    if (center.x < halfWidth + 5.0) {
-        center.x = halfWidth + 5.0;
+    if (center.x <
+        halfWidth + 5.0) {
+
+        center.x =
+            halfWidth + 5.0;
     }
 
 
@@ -786,8 +1074,11 @@
     }
 
 
-    if (center.y < halfHeight + 5.0) {
-        center.y = halfHeight + 5.0;
+    if (center.y <
+        halfHeight + 5.0) {
+
+        center.y =
+            halfHeight + 5.0;
     }
 
 
@@ -823,7 +1114,8 @@
 
 - (void)hideMenu
 {
-    UIView *menu = self.menuView;
+    UIView *menu =
+        self.menuView;
 
 
     if (menu == nil) {
@@ -854,15 +1146,55 @@
         self.menuHeader = nil;
 
         self.overlay = nil;
+
+        self.scrollView = nil;
     }];
 }
 
 @end
 
 
+#pragma mark - Advertisement Hook
+
+
+%hook BVVideoDetailAdCardView
+
+
+- (void)setupViewWithAdAssert:(id)ad
+                 isSmallStyle:(BOOL)smallStyle
+                isSocialStyle:(BOOL)socialStyle
+{
+    %orig;
+
+
+    BOOL enabled =
+        [[NSUserDefaults standardUserDefaults]
+            boolForKey:@"LikeeTweakAdFilter"];
+
+
+    if (enabled) {
+
+        self.hidden = YES;
+
+
+        NSLog(
+            @"[LikeeTweak] Advertisement card hidden"
+        );
+    }
+}
+
+
+%end
+
+
+#pragma mark - Constructor
+
+
 %ctor
 {
-    NSLog(@"[LikeeTweak] CONSTRUCTOR");
+    NSLog(
+        @"[LikeeTweak] CONSTRUCTOR"
+    );
 
 
     dispatch_after(
