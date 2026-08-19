@@ -36,7 +36,6 @@
 
 @implementation LikeeTweakMenu
 
-
 + (instancetype)sharedInstance
 {
     static LikeeTweakMenu *instance = nil;
@@ -52,7 +51,6 @@
 
 #pragma mark - Colors
 
-
 - (UIColor *)purpleColor
 {
     return [UIColor colorWithRed:0.48
@@ -60,7 +58,6 @@
                             blue:0.78
                            alpha:1.0];
 }
-
 
 - (UIColor *)lightPurpleColor
 {
@@ -70,7 +67,6 @@
                            alpha:1.0];
 }
 
-
 - (UIColor *)darkPurpleColor
 {
     return [UIColor colorWithRed:0.055
@@ -78,7 +74,6 @@
                             blue:0.09
                            alpha:0.97];
 }
-
 
 - (UIColor *)itemColor
 {
@@ -90,7 +85,6 @@
 
 
 #pragma mark - Install Button
-
 
 - (void)installButton
 {
@@ -136,17 +130,14 @@
         }
 
         if (window == nil) {
-
             NSLog(@"[LikeeTweak] Window not found");
             return;
         }
 
         self.window = window;
 
-
         UIButton *button =
             [UIButton buttonWithType:UIButtonTypeSystem];
-
 
         button.frame =
             CGRectMake(
@@ -156,73 +147,56 @@
                 50.0
             );
 
-
         [button setTitle:@"LT"
                 forState:UIControlStateNormal];
 
-
-        [button setTitleColor:
-                    [UIColor whiteColor]
-                    forState:UIControlStateNormal];
-
+        [button setTitleColor:[UIColor whiteColor]
+                     forState:UIControlStateNormal];
 
         button.titleLabel.font =
             [UIFont boldSystemFontOfSize:16.0];
-
 
         button.backgroundColor =
             [[self purpleColor]
                 colorWithAlphaComponent:0.88];
 
-
         button.layer.cornerRadius = 25.0;
         button.layer.masksToBounds = YES;
 
-
         button.layer.borderWidth = 1.0;
-
 
         button.layer.borderColor =
             [[self lightPurpleColor]
                 colorWithAlphaComponent:0.55].CGColor;
 
-
         [button addTarget:self
                    action:@selector(buttonTapped:)
          forControlEvents:UIControlEventTouchUpInside];
-
 
         UIPanGestureRecognizer *pan =
             [[UIPanGestureRecognizer alloc]
                 initWithTarget:self
                         action:@selector(buttonDragged:)];
 
-
         [button addGestureRecognizer:pan];
-
 
         [window addSubview:button];
 
-
         self.button = button;
-
 
         NSLog(@"[LikeeTweak] Purple button installed");
     });
 }
 
 
-#pragma mark - Drag Button
-
+#pragma mark - Button Drag
 
 - (void)buttonDragged:(UIPanGestureRecognizer *)gesture
 {
     UIView *button = gesture.view;
 
-
     CGPoint translation =
         [gesture translationInView:button.superview];
-
 
     button.center =
         CGPointMake(
@@ -230,15 +204,12 @@
             button.center.y + translation.y
         );
 
-
-    [gesture setTranslation:
-                 CGPointZero
-                   inView:button.superview];
+    [gesture setTranslation:CGPointZero
+                    inView:button.superview];
 }
 
 
 #pragma mark - Button Tap
-
 
 - (void)buttonTapped:(UIButton *)sender
 {
@@ -253,35 +224,28 @@
 
 #pragma mark - Show Menu
 
-
 - (void)showMenu
 {
     if (self.menuView != nil ||
         self.window == nil) {
-
         return;
     }
 
-
     CGFloat width = 275.0;
     CGFloat height = 390.0;
-
 
     CGFloat x =
         self.window.bounds.size.width
         - width
         - 15.0;
 
-
     CGFloat y =
         self.button.frame.origin.y
         - 130.0;
 
-
     if (y < 35.0) {
         y = 35.0;
     }
-
 
     if (y + height >
         self.window.bounds.size.height - 20.0) {
@@ -297,22 +261,16 @@
         [[UIView alloc]
             initWithFrame:self.window.bounds];
 
-
-    overlay.backgroundColor =
-        [UIColor clearColor];
-
+    overlay.backgroundColor = [UIColor clearColor];
 
     UITapGestureRecognizer *overlayTap =
         [[UITapGestureRecognizer alloc]
             initWithTarget:self
                     action:@selector(hideMenu)];
 
-
     [overlay addGestureRecognizer:overlayTap];
 
-
     [self.window addSubview:overlay];
-
 
     self.overlay = overlay;
 
@@ -327,25 +285,19 @@
                     height
                 )];
 
-
     menu.backgroundColor =
         [self darkPurpleColor];
-
 
     menu.layer.cornerRadius = 24.0;
     menu.layer.masksToBounds = YES;
 
-
     menu.layer.borderWidth = 1.0;
-
 
     menu.layer.borderColor =
         [[self purpleColor]
             colorWithAlphaComponent:0.75].CGColor;
 
-
     [self.window addSubview:menu];
-
 
     self.menuView = menu;
 
@@ -353,7 +305,6 @@
     /*
      HEADER
      */
-
 
     UIView *header =
         [[UIView alloc]
@@ -365,14 +316,11 @@
                     82.0
                 )];
 
-
     header.backgroundColor =
         [[self purpleColor]
             colorWithAlphaComponent:0.18];
 
-
     [menu addSubview:header];
-
 
     self.menuHeader = header;
 
@@ -381,7 +329,6 @@
         [[UIPanGestureRecognizer alloc]
             initWithTarget:self
                     action:@selector(menuDragged:)];
-
 
     [header addGestureRecognizer:menuPan];
 
@@ -396,17 +343,12 @@
                     32.0
                 )];
 
-
     title.text = @"LikeeTweak";
 
-
-    title.textColor =
-        [UIColor whiteColor];
-
+    title.textColor = [UIColor whiteColor];
 
     title.font =
         [UIFont boldSystemFontOfSize:21.0];
-
 
     [header addSubview:title];
 
@@ -421,26 +363,21 @@
                     22.0
                 )];
 
-
     subtitle.text =
         @"Настройки и функции";
-
 
     subtitle.textColor =
         [[UIColor whiteColor]
             colorWithAlphaComponent:0.55];
 
-
     subtitle.font =
         [UIFont systemFontOfSize:12.0];
-
 
     [header addSubview:subtitle];
 
 
     UIButton *closeButton =
         [UIButton buttonWithType:UIButtonTypeSystem];
-
 
     closeButton.frame =
         CGRectMake(
@@ -450,33 +387,25 @@
             36.0
         );
 
-
     [closeButton setTitle:@"×"
                  forState:UIControlStateNormal];
 
-
-    [closeButton setTitleColor:
-                    [UIColor whiteColor]
-                    forState:UIControlStateNormal];
-
+    [closeButton setTitleColor:[UIColor whiteColor]
+                      forState:UIControlStateNormal];
 
     closeButton.titleLabel.font =
         [UIFont systemFontOfSize:28.0
                           weight:UIFontWeightLight];
 
-
     closeButton.backgroundColor =
         [[UIColor whiteColor]
             colorWithAlphaComponent:0.08];
 
-
     closeButton.layer.cornerRadius = 18.0;
-
 
     [closeButton addTarget:self
                     action:@selector(closeButtonTapped:)
           forControlEvents:UIControlEventTouchUpInside];
-
 
     [header addSubview:closeButton];
 
@@ -491,11 +420,9 @@
                     1.0
                 )];
 
-
     line.backgroundColor =
         [[self purpleColor]
             colorWithAlphaComponent:0.45];
-
 
     [menu addSubview:line];
 
@@ -503,7 +430,6 @@
     /*
      SCROLL VIEW
      */
-
 
     UIScrollView *scroll =
         [[UIScrollView alloc]
@@ -515,22 +441,16 @@
                     height - 82.0
                 )];
 
-
     scroll.backgroundColor =
         [UIColor clearColor];
 
-
     scroll.showsVerticalScrollIndicator = YES;
-
 
     scroll.alwaysBounceVertical = YES;
 
-
     scroll.directionalLockEnabled = YES;
 
-
     [menu addSubview:scroll];
-
 
     self.scrollView = scroll;
 
@@ -538,7 +458,6 @@
     /*
      SECTION 1
      */
-
 
     UILabel *section1 =
         [[UILabel alloc]
@@ -550,43 +469,37 @@
                     22.0
                 )];
 
-
-    section1.text =
-        @"ЭФИР";
-
+    section1.text = @"ЭФИР";
 
     section1.textColor =
         [[self lightPurpleColor]
             colorWithAlphaComponent:0.9];
 
-
     section1.font =
         [UIFont boldSystemFontOfSize:11.0];
-
 
     [scroll addSubview:section1];
 
 
     [self addSwitchItem:
-            @"Информация об эфире"
-                       icon:@"●"
-                        key:@"LikeeTweakLiveInfo"
-                          y:38.0
-                        menu:scroll];
+        @"Информация об эфире"
+        icon:@"●"
+        key:@"LikeeTweakLiveInfo"
+        y:38.0
+        menu:scroll];
 
 
     [self addSwitchItem:
-            @"Показывать модераторов"
-                       icon:@"★"
-                        key:@"LikeeTweakModerators"
-                          y:86.0
-                        menu:scroll];
+        @"Показывать модераторов"
+        icon:@"★"
+        key:@"LikeeTweakModerators"
+        y:86.0
+        menu:scroll];
 
 
     /*
      SECTION 2
      */
-
 
     UILabel *section2 =
         [[UILabel alloc]
@@ -598,43 +511,37 @@
                     22.0
                 )];
 
-
-    section2.text =
-        @"ИНТЕРФЕЙС";
-
+    section2.text = @"ИНТЕРФЕЙС";
 
     section2.textColor =
         [[self lightPurpleColor]
             colorWithAlphaComponent:0.9];
 
-
     section2.font =
         [UIFont boldSystemFontOfSize:11.0];
-
 
     [scroll addSubview:section2];
 
 
     [self addSwitchItem:
-            @"Компактный интерфейс"
-                       icon:@"◆"
-                        key:@"LikeeTweakCompact"
-                          y:164.0
-                        menu:scroll];
+        @"Компактный интерфейс"
+        icon:@"◆"
+        key:@"LikeeTweakCompact"
+        y:164.0
+        menu:scroll];
 
 
     [self addSwitchItem:
-            @"Скрыть лишние элементы"
-                       icon:@"◈"
-                        key:@"LikeeTweakHideUI"
-                          y:212.0
-                        menu:scroll];
+        @"Скрыть лишние элементы"
+        icon:@"◈"
+        key:@"LikeeTweakHideUI"
+        y:212.0
+        menu:scroll];
 
 
     /*
      SECTION 3
      */
-
 
     UILabel *section3 =
         [[UILabel alloc]
@@ -646,34 +553,24 @@
                     22.0
                 )];
 
-
-    section3.text =
-        @"РЕКОМЕНДАЦИИ";
-
+    section3.text = @"РЕКОМЕНДАЦИИ";
 
     section3.textColor =
         [[self lightPurpleColor]
             colorWithAlphaComponent:0.9];
 
-
     section3.font =
         [UIFont boldSystemFontOfSize:11.0];
-
 
     [scroll addSubview:section3];
 
 
     [self addSwitchItem:
-            @"Фильтр рекламы"
-                       icon:@"✦"
-                        key:@"LikeeTweakAdFilter"
-                          y:290.0
-                        menu:scroll];
-
-
-    /*
-     НИЖНЯЯ ЧАСТЬ
-     */
+        @"Фильтр рекламы"
+        icon:@"✦"
+        key:@"LikeeTweakAdFilter"
+        y:290.0
+        menu:scroll];
 
 
     UILabel *future =
@@ -686,30 +583,19 @@
                     55.0
                 )];
 
-
     future.text =
         @"Новые функции будут\nдобавляться сюда";
 
-
     future.numberOfLines = 2;
-
 
     future.textColor =
         [[UIColor whiteColor]
             colorWithAlphaComponent:0.30];
 
-
     future.font =
         [UIFont systemFontOfSize:11.0];
 
-
     [scroll addSubview:future];
-
-
-    /*
-     Делаем контент выше самого окна,
-     чтобы UIScrollView реально листался.
-     */
 
 
     scroll.contentSize =
@@ -719,13 +605,7 @@
         );
 
 
-    /*
-     ANIMATION
-     */
-
-
     menu.alpha = 0.0;
-
 
     menu.transform =
         CGAffineTransformMakeScale(
@@ -747,7 +627,6 @@
 
 #pragma mark - Switch Item
 
-
 - (void)addSwitchItem:(NSString *)title
                  icon:(NSString *)icon
                   key:(NSString *)key
@@ -764,13 +643,10 @@
                     40.0
                 )];
 
-
     container.backgroundColor =
         [self itemColor];
 
-
     container.layer.cornerRadius = 11.0;
-
 
     [menu addSubview:container];
 
@@ -785,17 +661,13 @@
                     30.0
                 )];
 
-
     iconLabel.text = icon;
-
 
     iconLabel.textColor =
         [self lightPurpleColor];
 
-
     iconLabel.font =
         [UIFont systemFontOfSize:16.0];
-
 
     [container addSubview:iconLabel];
 
@@ -810,17 +682,12 @@
                     40.0
                 )];
 
-
     label.text = title;
 
-
-    label.textColor =
-        [UIColor whiteColor];
-
+    label.textColor = [UIColor whiteColor];
 
     label.font =
         [UIFont systemFontOfSize:13.0];
-
 
     [container addSubview:label];
 
@@ -843,10 +710,8 @@
 
     toggle.on = enabled;
 
-
     toggle.onTintColor =
         [self purpleColor];
-
 
     toggle.transform =
         CGAffineTransformMakeScale(
@@ -854,9 +719,7 @@
             0.78
         );
 
-
-    toggle.accessibilityIdentifier =
-        key;
+    toggle.accessibilityIdentifier = key;
 
 
     [toggle addTarget:self
@@ -865,11 +728,6 @@
 
 
     [container addSubview:toggle];
-
-
-    /*
-     Маленький ON / OFF
-     */
 
 
     UILabel *state =
@@ -886,14 +744,11 @@
     state.text =
         enabled ? @"ON" : @"OFF";
 
-
     state.textAlignment =
         NSTextAlignmentCenter;
 
-
     state.font =
         [UIFont boldSystemFontOfSize:8.0];
-
 
     state.textColor =
         enabled
@@ -901,9 +756,7 @@
         : [[UIColor whiteColor]
             colorWithAlphaComponent:0.30];
 
-
     state.tag = 9001;
-
 
     [container addSubview:state];
 }
@@ -911,12 +764,10 @@
 
 #pragma mark - Switch Changed
 
-
 - (void)switchChanged:(UISwitch *)sender
 {
     NSString *key =
         sender.accessibilityIdentifier;
-
 
     BOOL enabled =
         sender.isOn;
@@ -925,7 +776,6 @@
     [[NSUserDefaults standardUserDefaults]
         setBool:enabled
         forKey:key];
-
 
     [[NSUserDefaults standardUserDefaults]
         synchronize];
@@ -944,30 +794,22 @@
         state.text =
             enabled ? @"ON" : @"OFF";
 
-
         state.textColor =
             enabled
-            ? [self lightPurpleColor]
-            : [[UIColor whiteColor]
-                colorWithAlphaComponent:0.30];
+        ? [self lightPurpleColor]
+        : [[UIColor whiteColor]
+            colorWithAlphaComponent:0.30];
     }
 
 
-    /*
-     Первая настоящая функция
-     */
-
-
-    if ([key isEqualToString:
-                  @"LikeeTweakAdFilter"]) {
+    if ([key isEqualToString:@"LikeeTweakAdFilter"]) {
 
         [self updateAdCards];
     }
 }
 
 
-#pragma mark - Update Advertisement Cards
-
+#pragma mark - Advertisement Cards
 
 - (void)updateAdCards
 {
@@ -1009,11 +851,10 @@
 {
     if ([view isKindOfClass:adClass]) {
 
-        view.hidden = hidden;
-
+        [view setHidden:hidden];
 
         NSLog(
-            @"[LikeeTweak] BVVideoDetailAdCardView %@",
+            @"[LikeeTweak] Ad card %@",
             hidden ? @"HIDDEN" : @"VISIBLE"
         );
     }
@@ -1030,7 +871,6 @@
 
 
 #pragma mark - Menu Drag
-
 
 - (void)menuDragged:(UIPanGestureRecognizer *)gesture
 {
@@ -1105,7 +945,6 @@
 
 #pragma mark - Close
 
-
 - (void)closeButtonTapped:(UIButton *)sender
 {
     [self hideMenu];
@@ -1156,9 +995,7 @@
 
 #pragma mark - Advertisement Hook
 
-
 %hook BVVideoDetailAdCardView
-
 
 - (void)setupViewWithAdAssert:(id)ad
                  isSmallStyle:(BOOL)smallStyle
@@ -1174,7 +1011,7 @@
 
     if (enabled) {
 
-        self.hidden = YES;
+        [(UIView *)self setHidden:YES];
 
 
         NSLog(
@@ -1183,12 +1020,10 @@
     }
 }
 
-
 %end
 
 
 #pragma mark - Constructor
-
 
 %ctor
 {
