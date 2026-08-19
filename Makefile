@@ -4,7 +4,7 @@ include $(THEOS)/makefiles/common.mk
 
 TWEAK_NAME = MyFirstTweak
 
-MyFirstTweak_FILES = Tweak.x LikeeAdFilter.m
+MyFirstTweak_FILES = Tweak.x
 
 MyFirstTweak_CFLAGS = -fobjc-arc
 
