@@ -8,6 +8,7 @@
 @property (nonatomic, strong) UIView *overlay;
 @property (nonatomic, strong) UIScrollView *scrollView;
 @property (nonatomic, strong) UIWindow *window;
+@property (nonatomic, strong) NSTimer *adTimer;
 
 + (instancetype)sharedInstance;
 
@@ -34,10 +35,14 @@
                adClass:(Class)adClass
                 hidden:(BOOL)hidden;
 
+- (void)startAdTimer;
+- (void)stopAdTimer;
+
 @end
 
 
 @implementation LikeeTweakMenu
+
 
 + (instancetype)sharedInstance
 {
@@ -62,6 +67,7 @@
                            alpha:1.0];
 }
 
+
 - (UIColor *)lightPurpleColor
 {
     return [UIColor colorWithRed:0.65
@@ -70,6 +76,7 @@
                            alpha:1.0];
 }
 
+
 - (UIColor *)darkPurpleColor
 {
     return [UIColor colorWithRed:0.055
@@ -77,6 +84,7 @@
                             blue:0.09
                            alpha:0.97];
 }
+
 
 - (UIColor *)itemColor
 {
@@ -257,6 +265,7 @@
             - height
             - 20.0;
     }
+
 
     UIView *overlay =
         [[UIView alloc]
@@ -544,7 +553,7 @@
         icon:@"✦"
         key:@"LikeeTweakAdFilter"
         y:290.0
-        menu:scroll;
+        menu:scroll];
 
 
     UILabel *future =
@@ -796,9 +805,6 @@
         setBool:enabled
         forKey:key];
 
-    [[NSUserDefaults standardUserDefaults]
-        synchronize];
-
 
     UIView *container =
         sender.superview;
@@ -822,18 +828,60 @@
 
 
     if ([key isEqualToString:@"LikeeTweakAdFilter"]) {
-        [self updateAdCards];
+
+        if (enabled) {
+            [self startAdTimer];
+            [self updateAdCards];
+        }
+        else {
+            [self stopAdTimer];
+        }
     }
 }
 
 
 #pragma mark - Advertisement Filter
 
+- (void)startAdTimer
+{
+    [self stopAdTimer];
+
+
+    self.adTimer =
+        [NSTimer scheduledTimerWithTimeInterval:0.5
+                                         target:self
+                                       selector:@selector(updateAdCards)
+                                       userInfo:nil
+                                        repeats:YES];
+
+
+    NSLog(@"[LikeeTweak] Advertisement scanner started");
+}
+
+
+- (void)stopAdTimer
+{
+    if (self.adTimer != nil) {
+
+        [self.adTimer invalidate];
+
+        self.adTimer = nil;
+
+        NSLog(@"[LikeeTweak] Advertisement scanner stopped");
+    }
+}
+
+
 - (void)updateAdCards
 {
     BOOL enabled =
         [[NSUserDefaults standardUserDefaults]
             boolForKey:@"LikeeTweakAdFilter"];
+
+
+    if (!enabled) {
+        return;
+    }
 
 
     Class cardClass =
@@ -844,7 +892,7 @@
 
     Class style1Class =
         NSClassFromString(
-            @"BVVideoDetailAdStyle1CardView"
+            @"LIKE.BVVideoDetailAdStyle1CardView"
         );
 
 
@@ -854,39 +902,16 @@
         );
 
 
-    if (cardClass == Nil) {
-
-        NSLog(
-            @"[LikeeTweak] BVVideoDetailAdCardView not found"
-        );
-    }
-
-
-    if (style1Class == Nil) {
-
-        NSLog(
-            @"[LikeeTweak] BVVideoDetailAdStyle1CardView not found"
-        );
-    }
-
-
-    if (imageClass == Nil) {
-
-        NSLog(
-            @"[LikeeTweak] BGServerAdImageView not found"
-        );
-    }
-
-
     for (UIWindow *window in
          UIApplication.sharedApplication.windows) {
+
 
         if (cardClass != Nil) {
 
             [self updateSubviews:
                         window
                         adClass:cardClass
-                         hidden:enabled];
+                         hidden:YES];
         }
 
 
@@ -895,7 +920,7 @@
             [self updateSubviews:
                         window
                         adClass:style1Class
-                         hidden:enabled];
+                         hidden:YES];
         }
 
 
@@ -904,15 +929,9 @@
             [self updateSubviews:
                         window
                         adClass:imageClass
-                         hidden:enabled];
+                         hidden:YES];
         }
     }
-
-
-    NSLog(
-        @"[LikeeTweak] Ad filter: %@",
-        enabled ? @"ON" : @"OFF"
-    );
 }
 
 
@@ -922,13 +941,15 @@
 {
     if ([view isKindOfClass:adClass]) {
 
-        [view setHidden:hidden];
+        view.hidden = hidden;
 
         NSLog(
-            @"[LikeeTweak] Ad component %@: %@",
+            @"[LikeeTweak] %@ -> %@",
             NSStringFromClass(adClass),
             hidden ? @"HIDDEN" : @"VISIBLE"
         );
+
+        return;
     }
 
 
@@ -960,6 +981,7 @@
 
     CGFloat halfWidth =
         self.menuView.bounds.size.width / 2.0;
+
 
     CGFloat halfHeight =
         self.menuView.bounds.size.height / 2.0;
@@ -1026,6 +1048,7 @@
 {
     UIView *menu = self.menuView;
 
+
     if (menu == nil) {
         return;
     }
@@ -1059,105 +1082,6 @@
 @end
 
 
-#pragma mark - Advertisement Card Hook
-
-%hook BVVideoDetailAdCardView
-
-- (void)setupViewWithAdAssert:(id)ad
-                 isSmallStyle:(BOOL)smallStyle
-                isSocialStyle:(BOOL)socialStyle
-{
-    %orig;
-
-    BOOL enabled =
-        [[NSUserDefaults standardUserDefaults]
-            boolForKey:@"LikeeTweakAdFilter"];
-
-
-    if (enabled) {
-
-        [(UIView *)self setHidden:YES];
-
-        NSLog(
-            @"[LikeeTweak] BVVideoDetailAdCardView hidden"
-        );
-    }
-}
-
-- (void)didMoveToWindow
-{
-    %orig;
-
-    BOOL enabled =
-        [[NSUserDefaults standardUserDefaults]
-            boolForKey:@"LikeeTweakAdFilter"];
-
-
-    if (enabled) {
-
-        [(UIView *)self setHidden:YES];
-
-        NSLog(
-            @"[LikeeTweak] BVVideoDetailAdCardView appeared -> hidden"
-        );
-    }
-}
-
-%end
-
-
-#pragma mark - Advertisement Style 1 Hook
-
-%hook BVVideoDetailAdStyle1CardView
-
-- (void)didMoveToWindow
-{
-    %orig;
-
-    BOOL enabled =
-        [[NSUserDefaults standardUserDefaults]
-            boolForKey:@"LikeeTweakAdFilter"];
-
-
-    if (enabled) {
-
-        [(UIView *)self setHidden:YES];
-
-        NSLog(
-            @"[LikeeTweak] BVVideoDetailAdStyle1CardView appeared -> hidden"
-        );
-    }
-}
-
-%end
-
-
-#pragma mark - Advertisement Image Hook
-
-%hook BGServerAdImageView
-
-- (void)didMoveToWindow
-{
-    %orig;
-
-    BOOL enabled =
-        [[NSUserDefaults standardUserDefaults]
-            boolForKey:@"LikeeTweakAdFilter"];
-
-
-    if (enabled) {
-
-        [(UIView *)self setHidden:YES];
-
-        NSLog(
-            @"[LikeeTweak] BGServerAdImageView appeared -> hidden"
-        );
-    }
-}
-
-%end
-
-
 #pragma mark - Constructor
 
 %ctor
@@ -1173,8 +1097,19 @@
         dispatch_get_main_queue(),
         ^{
 
-            [[LikeeTweakMenu sharedInstance]
-                installButton];
+            LikeeTweakMenu *menu =
+                [LikeeTweakMenu sharedInstance];
+
+            [menu installButton];
+
+
+            if ([[NSUserDefaults standardUserDefaults]
+                    boolForKey:@"LikeeTweakAdFilter"]) {
+
+                [menu startAdTimer];
+
+                [menu updateAdCards];
+            }
         }
     );
 }
