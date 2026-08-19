@@ -928,6 +928,15 @@
 @end
 #pragma mark - Constructor
 %ctor
+%hook BGServerAdVideoPlayView
+
+- (void)startAd
+{
+    NSLog(@"[LikeeTweak] BGServerAdVideoPlayView startAd intercepted");
+    return;
+}
+
+%end
 {
     NSLog(@"[LikeeTweak] CONSTRUCTOR");
     dispatch_after(
