@@ -40,13 +40,11 @@
 
 @end
 
-
 @implementation LikeeTweakMenu
-
 
 + (instancetype)sharedInstance
 {
-    static LikeeTweakMenu *instance = nil;
+    static LikeeTweakMenu *instance;
     static dispatch_once_t onceToken;
 
     dispatch_once(&onceToken, ^{
@@ -55,7 +53,6 @@
 
     return instance;
 }
-
 
 #pragma mark - Colors
 
@@ -67,7 +64,6 @@
                            alpha:1.0];
 }
 
-
 - (UIColor *)lightPurpleColor
 {
     return [UIColor colorWithRed:0.65
@@ -75,7 +71,6 @@
                             blue:0.95
                            alpha:1.0];
 }
-
 
 - (UIColor *)darkPurpleColor
 {
@@ -85,7 +80,6 @@
                            alpha:0.97];
 }
 
-
 - (UIColor *)itemColor
 {
     return [UIColor colorWithRed:0.18
@@ -93,7 +87,6 @@
                             blue:0.25
                            alpha:0.88];
 }
-
 
 #pragma mark - Install Button
 
@@ -198,7 +191,6 @@
     });
 }
 
-
 #pragma mark - Button Drag
 
 - (void)buttonDragged:(UIPanGestureRecognizer *)gesture
@@ -218,19 +210,16 @@
                     inView:button.superview];
 }
 
-
 #pragma mark - Button Tap
 
 - (void)buttonTapped:(UIButton *)sender
 {
     if (self.menuView != nil) {
         [self hideMenu];
-    }
-    else {
+    } else {
         [self showMenu];
     }
 }
-
 
 #pragma mark - Show Menu
 
@@ -266,7 +255,6 @@
             - 20.0;
     }
 
-
     UIView *overlay =
         [[UIView alloc]
             initWithFrame:self.window.bounds];
@@ -283,7 +271,6 @@
     [self.window addSubview:overlay];
 
     self.overlay = overlay;
-
 
     UIView *menu =
         [[UIView alloc]
@@ -310,7 +297,6 @@
 
     self.menuView = menu;
 
-
     UIView *header =
         [[UIView alloc]
             initWithFrame:
@@ -329,14 +315,12 @@
 
     self.menuHeader = header;
 
-
     UIPanGestureRecognizer *menuPan =
         [[UIPanGestureRecognizer alloc]
             initWithTarget:self
                     action:@selector(menuDragged:)];
 
     [header addGestureRecognizer:menuPan];
-
 
     UILabel *title =
         [[UILabel alloc]
@@ -356,7 +340,6 @@
 
     [header addSubview:title];
 
-
     UILabel *subtitle =
         [[UILabel alloc]
             initWithFrame:
@@ -367,8 +350,7 @@
                     22.0
                 )];
 
-    subtitle.text =
-        @"Настройки и функции";
+    subtitle.text = @"Настройки и функции";
 
     subtitle.textColor =
         [[UIColor whiteColor]
@@ -378,7 +360,6 @@
         [UIFont systemFontOfSize:12.0];
 
     [header addSubview:subtitle];
-
 
     UIButton *closeButton =
         [UIButton buttonWithType:UIButtonTypeSystem];
@@ -413,7 +394,6 @@
 
     [header addSubview:closeButton];
 
-
     UIView *line =
         [[UIView alloc]
             initWithFrame:
@@ -429,7 +409,6 @@
             colorWithAlphaComponent:0.45];
 
     [menu addSubview:line];
-
 
     UIScrollView *scroll =
         [[UIScrollView alloc]
@@ -449,7 +428,6 @@
 
     self.scrollView = scroll;
 
-
     UILabel *section1 =
         [[UILabel alloc]
             initWithFrame:
@@ -461,7 +439,6 @@
                 )];
 
     section1.text = @"ЭФИР";
-
     section1.textColor =
         [[self lightPurpleColor]
             colorWithAlphaComponent:0.9];
@@ -471,7 +448,6 @@
 
     [scroll addSubview:section1];
 
-
     [self addSwitchItem:
         @"Информация об эфире"
         icon:@"●"
@@ -479,14 +455,12 @@
         y:38.0
         menu:scroll];
 
-
     [self addSwitchItem:
         @"Показывать модераторов"
         icon:@"★"
         key:@"LikeeTweakModerators"
         y:86.0
         menu:scroll];
-
 
     UILabel *section2 =
         [[UILabel alloc]
@@ -509,7 +483,6 @@
 
     [scroll addSubview:section2];
 
-
     [self addSwitchItem:
         @"Компактный интерфейс"
         icon:@"◆"
@@ -517,14 +490,12 @@
         y:164.0
         menu:scroll];
 
-
     [self addSwitchItem:
         @"Скрыть лишние элементы"
         icon:@"◈"
         key:@"LikeeTweakHideUI"
         y:212.0
         menu:scroll];
-
 
     UILabel *section3 =
         [[UILabel alloc]
@@ -547,14 +518,12 @@
 
     [scroll addSubview:section3];
 
-
     [self addSwitchItem:
         @"Фильтр рекламы"
         icon:@"✦"
         key:@"LikeeTweakAdFilter"
         y:290.0
         menu:scroll];
-
 
     UILabel *future =
         [[UILabel alloc]
@@ -580,27 +549,22 @@
 
     [scroll addSubview:future];
 
-
     scroll.contentSize =
         CGSizeMake(width, 430.0);
-
 
     menu.alpha = 0.0;
 
     menu.transform =
         CGAffineTransformMakeScale(0.92, 0.92);
 
-
     [UIView animateWithDuration:0.18
                      animations:^{
 
         menu.alpha = 1.0;
-
         menu.transform =
             CGAffineTransformIdentity;
     }];
 }
-
 
 #pragma mark - Switch Item
 
@@ -628,7 +592,6 @@
 
     [menu addSubview:container];
 
-
     UILabel *iconLabel =
         [[UILabel alloc]
             initWithFrame:
@@ -647,27 +610,11 @@
 
     [container addSubview:iconLabel];
 
-
-    UIView *textClip =
-        [[UIView alloc]
-            initWithFrame:
-                CGRectMake(
-                    42.0,
-                    0.0,
-                    108.0,
-                    40.0
-                )];
-
-    textClip.clipsToBounds = YES;
-
-    [container addSubview:textClip];
-
-
     UILabel *label =
         [[UILabel alloc]
             initWithFrame:
                 CGRectMake(
-                    0.0,
+                    42.0,
                     0.0,
                     108.0,
                     40.0
@@ -681,49 +628,7 @@
 
     label.numberOfLines = 1;
 
-    [textClip addSubview:label];
-
-
-    CGFloat textWidth =
-        [title sizeWithAttributes:
-            @{NSFontAttributeName:
-                [UIFont systemFontOfSize:13.0]}].width;
-
-
-    if (textWidth > 104.0) {
-
-        CGFloat distance =
-            textWidth - 104.0;
-
-
-        label.frame =
-            CGRectMake(
-                0.0,
-                0.0,
-                textWidth + 10.0,
-                40.0
-            );
-
-
-        [UIView animateWithDuration:
-            MAX(5.0, distance / 7.0)
-            delay:1.0
-            options:
-                UIViewAnimationOptionAutoreverse |
-                UIViewAnimationOptionRepeat |
-                UIViewAnimationOptionCurveEaseInOut
-            animations:^{
-
-                label.transform =
-                    CGAffineTransformMakeTranslation(
-                        -distance,
-                        0.0
-                    );
-
-            }
-            completion:nil];
-    }
-
+    [container addSubview:label];
 
     UISwitch *toggle =
         [[UISwitch alloc]
@@ -735,29 +640,23 @@
                     30.0
                 )];
 
-
     BOOL enabled =
         [[NSUserDefaults standardUserDefaults]
             boolForKey:key];
 
     toggle.on = enabled;
-
-    toggle.onTintColor =
-        [self purpleColor];
+    toggle.onTintColor = [self purpleColor];
 
     toggle.transform =
         CGAffineTransformMakeScale(0.78, 0.78);
 
     toggle.accessibilityIdentifier = key;
 
-
     [toggle addTarget:self
                action:@selector(switchChanged:)
      forControlEvents:UIControlEventValueChanged];
 
-
     [container addSubview:toggle];
-
 
     UILabel *state =
         [[UILabel alloc]
@@ -789,7 +688,6 @@
     [container addSubview:state];
 }
 
-
 #pragma mark - Switch Changed
 
 - (void)switchChanged:(UISwitch *)sender
@@ -797,22 +695,16 @@
     NSString *key =
         sender.accessibilityIdentifier;
 
-    BOOL enabled =
-        sender.isOn;
-
+    BOOL enabled = sender.isOn;
 
     [[NSUserDefaults standardUserDefaults]
         setBool:enabled
         forKey:key];
 
-
-    UIView *container =
-        sender.superview;
-
+    UIView *container = sender.superview;
 
     UILabel *state =
         [container viewWithTag:9001];
-
 
     if (state != nil) {
 
@@ -826,26 +718,22 @@
                 colorWithAlphaComponent:0.30];
     }
 
-
     if ([key isEqualToString:@"LikeeTweakAdFilter"]) {
 
         if (enabled) {
             [self startAdTimer];
             [self updateAdCards];
-        }
-        else {
+        } else {
             [self stopAdTimer];
         }
     }
 }
 
-
-#pragma mark - Advertisement Filter
+#pragma mark - Advertisement / Moloco Test
 
 - (void)startAdTimer
 {
     [self stopAdTimer];
-
 
     self.adTimer =
         [NSTimer scheduledTimerWithTimeInterval:0.5
@@ -854,106 +742,143 @@
                                        userInfo:nil
                                         repeats:YES];
 
-
-    NSLog(@"[LikeeTweak] Advertisement scanner started");
+    NSLog(@"[LikeeTweak] Ad test started");
 }
-
 
 - (void)stopAdTimer
 {
     if (self.adTimer != nil) {
 
         [self.adTimer invalidate];
-
         self.adTimer = nil;
 
-        NSLog(@"[LikeeTweak] Advertisement scanner stopped");
+        NSLog(@"[LikeeTweak] Ad test stopped");
     }
 }
 
-
 - (void)updateAdCards
 {
-    BOOL enabled =
-        [[NSUserDefaults standardUserDefaults]
-            boolForKey:@"LikeeTweakAdFilter"];
-
-
-    if (!enabled) {
+    if (![[NSUserDefaults standardUserDefaults]
+            boolForKey:@"LikeeTweakAdFilter"]) {
         return;
     }
 
+    /*
+     * Старые известные рекламные классы.
+     * BGServerAdImageView намеренно НЕ используется.
+     */
+    Class adCard =
+        NSClassFromString(@"BVVideoDetailAdCardView");
 
-    Class cardClass =
-        NSClassFromString(
-            @"BVVideoDetailAdCardView"
-        );
-
-
-    Class style1Class =
+    Class adStyle =
         NSClassFromString(
             @"LIKE.BVVideoDetailAdStyle1CardView"
         );
 
+    /*
+     * Экспериментальный Moloco-класс.
+     */
+    Class moloco =
+        NSClassFromString(@"VideoPlayerUIView");
 
-    Class imageClass =
-        NSClassFromString(
-            @"BGServerAdImageView"
-        );
-
+    Class moloco2 =
+        NSClassFromString(@"MolocoSDK.VideoPlayerUIView");
 
     for (UIWindow *window in
          UIApplication.sharedApplication.windows) {
 
-
-        if (cardClass != Nil) {
+        if (adCard != Nil) {
 
             [self updateSubviews:
                         window
-                        adClass:cardClass
+                        adClass:adCard
                          hidden:YES];
         }
 
-
-        if (style1Class != Nil) {
+        if (adStyle != Nil) {
 
             [self updateSubviews:
                         window
-                        adClass:style1Class
+                        adClass:adStyle
                          hidden:YES];
         }
 
+        if (moloco != Nil) {
 
-        if (imageClass != Nil) {
+            NSLog(@"[LikeeTweak] VideoPlayerUIView FOUND");
 
             [self updateSubviews:
                         window
-                        adClass:imageClass
+                        adClass:moloco
+                         hidden:YES];
+        }
+
+        if (moloco2 != Nil) {
+
+            NSLog(@"[LikeeTweak] MolocoSDK.VideoPlayerUIView FOUND");
+
+            [self updateSubviews:
+                        window
+                        adClass:moloco2
                          hidden:YES];
         }
     }
 }
-
 
 - (void)updateSubviews:(UIView *)view
                adClass:(Class)adClass
                 hidden:(BOOL)hidden
 {
-    if ([view isKindOfClass:adClass]) {
-
-        view.hidden = hidden;
-
-        NSLog(
-            @"[LikeeTweak] %@ -> %@",
-            NSStringFromClass(adClass),
-            hidden ? @"HIDDEN" : @"VISIBLE"
-        );
-
+    if (view == nil || adClass == Nil) {
         return;
     }
 
+    if ([view isKindOfClass:adClass]) {
 
-    for (UIView *subview in view.subviews) {
+        CGFloat width =
+            view.bounds.size.width;
+
+        CGFloat height =
+            view.bounds.size.height;
+
+        NSLog(@"[LikeeTweak] FOUND %@ %.0fx%.0f",
+              NSStringFromClass(adClass),
+              width,
+              height);
+
+        /*
+         * Не скрываем объект размером практически
+         * со весь экран.
+         */
+        CGFloat screenArea =
+            UIScreen.mainScreen.bounds.size.width *
+            UIScreen.mainScreen.bounds.size.height;
+
+        CGFloat viewArea =
+            width * height;
+
+        if (screenArea > 0.0 &&
+            viewArea >= screenArea * 0.85) {
+
+            NSLog(@"[LikeeTweak] SKIP large %@", 
+                  NSStringFromClass(adClass));
+
+        } else {
+
+            view.hidden = hidden;
+
+            NSLog(@"[LikeeTweak] %@ -> %@",
+                  NSStringFromClass(adClass),
+                  hidden ? @"HIDDEN" : @"VISIBLE");
+
+            return;
+        }
+    }
+
+    NSArray *subviews =
+        [view.subviews copy];
+
+    for (UIView *subview in subviews) {
 
         [self updateSubviews:
                     subview
@@ -962,7 +887,6 @@
     }
 }
 
-
 #pragma mark - Menu Drag
 
 - (void)menuDragged:(UIPanGestureRecognizer *)gesture
@@ -970,71 +894,49 @@
     CGPoint translation =
         [gesture translationInView:self.window];
 
-
     CGPoint center =
         self.menuView.center;
-
 
     center.x += translation.x;
     center.y += translation.y;
 
-
     CGFloat halfWidth =
         self.menuView.bounds.size.width / 2.0;
-
 
     CGFloat halfHeight =
         self.menuView.bounds.size.height / 2.0;
 
-
-    if (center.x <
-        halfWidth + 5.0) {
-
-        center.x =
-            halfWidth + 5.0;
+    if (center.x < halfWidth + 5.0) {
+        center.x = halfWidth + 5.0;
     }
-
 
     if (center.x >
-        self.window.bounds.size.width
-        - halfWidth
-        - 5.0) {
+        self.window.bounds.size.width -
+        halfWidth - 5.0) {
 
         center.x =
-            self.window.bounds.size.width
-            - halfWidth
-            - 5.0;
+            self.window.bounds.size.width -
+            halfWidth - 5.0;
     }
 
-
-    if (center.y <
-        halfHeight + 5.0) {
-
-        center.y =
-            halfHeight + 5.0;
+    if (center.y < halfHeight + 5.0) {
+        center.y = halfHeight + 5.0;
     }
-
 
     if (center.y >
-        self.window.bounds.size.height
-        - halfHeight
-        - 5.0) {
+        self.window.bounds.size.height -
+        halfHeight - 5.0) {
 
         center.y =
-            self.window.bounds.size.height
-            - halfHeight
-            - 5.0;
+            self.window.bounds.size.height -
+            halfHeight - 5.0;
     }
-
 
     self.menuView.center = center;
 
-
-    [gesture setTranslation:
-                 CGPointZero
-                   inView:self.window];
+    [gesture setTranslation:CGPointZero
+                    inView:self.window];
 }
-
 
 #pragma mark - Close
 
@@ -1043,16 +945,13 @@
     [self hideMenu];
 }
 
-
 - (void)hideMenu
 {
     UIView *menu = self.menuView;
 
-
     if (menu == nil) {
         return;
     }
-
 
     [UIView animateWithDuration:0.15
                      animations:^{
@@ -1069,7 +968,6 @@
                      completion:^(BOOL finished) {
 
         [menu removeFromSuperview];
-
         [self.overlay removeFromSuperview];
 
         self.menuView = nil;
@@ -1081,13 +979,11 @@
 
 @end
 
-
 #pragma mark - Constructor
 
 %ctor
 {
     NSLog(@"[LikeeTweak] CONSTRUCTOR");
-
 
     dispatch_after(
         dispatch_time(
@@ -1102,12 +998,10 @@
 
             [menu installButton];
 
-
             if ([[NSUserDefaults standardUserDefaults]
                     boolForKey:@"LikeeTweakAdFilter"]) {
 
                 [menu startAdTimer];
-
                 [menu updateAdCards];
             }
         }
