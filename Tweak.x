@@ -614,111 +614,43 @@
 
 - (void)scanView:(UIView *)view
 {
-    if (view == nill) {
-        return;
-    }
-
-    NSString *className =
-        NSStringFromClass([view class]);
+    NSString *className = NSStringFromClass([view class]);
 
     if ([className isEqualToString:@"BGAdComponentView"] ||
         [className isEqualToString:@"BGAdMediaView"] ||
         [className isEqualToString:@"BGServerMediaView"]) {
 
-    NSLog(
-        @"[LikeeTweak] HIDING AD CONTAINER: %@",
-        className
-    );
-
-    view.hidden = YES;
-    return;
-}
-
-
-    /*
-     * =====================================================
-     * BGServerMediaView
-     * =====================================================
-     *
-     * ТЕСТОВЫЙ РЕЖИМ:
-     * скрываем весь BGServerMediaView целиком.
-     */
-
-    if ([className isEqualToString:@"BGServerMediaView"]) {
-
-        NSLog(
-            @"[LikeeTweak] HIDING BGServerMediaView: %@",
-            view
-        );
+        NSLog(@"[LikeeTweak] HIDING AD CONTAINER: %@", className);
 
         view.hidden = YES;
-
         return;
     }
 
+    if ([className isEqualToString:@"BGServerAdVideoPlayView"] ||
+        [className isEqualToString:@"BGServerAdVideoPlayerContainer"] ||
+        [className isEqualToString:@"BGServerAdImageView"] ||
+        [className isEqualToString:@"LIKE.BVVideoDetailAdStyle1CardView"] ||
+        [className isEqualToString:@"BVVideoDetailBigoAdStyle1AdInfoView"] ||
+        [className isEqualToString:@"LIKE.BVVideoDetailAdStyle1SmallCardView"]) {
 
-    /*
-     * =====================================================
-     * Рекламные Video / Player / Image контейнеры
-     * =====================================================
-     */
-
-    if ([className isEqualToString:
-            @"BGServerAdVideoPlayView"] ||
-        [className isEqualToString:
-            @"BGServerAdVideoPlayerContainer"] ||
-        [className isEqualToString:
-            @"BGServerAdImageView"] ||
-        [className isEqualToString:
-            @"LIKE.BVVideoDetailAdStyle1CardView"] ||
-        [className isEqualToString:
-            @"BVVideoDetailBigoAdStyle1AdInfoView"] ||
-        [className isEqualToString:
-            @"LIKE.BVVideoDetailAdStyle1SmallCardView"]) {
-
-        NSLog(
-            @"[LikeeTweak] HIDING AD VIEW: %@",
-            className
-        );
+        NSLog(@"[LikeeTweak] HIDING AD VIEW: %@", className);
 
         view.hidden = YES;
-
         return;
     }
-
-
-    /*
-     * =====================================================
-     * Moloco
-     * =====================================================
-     */
 
     if ([className rangeOfString:@"Moloco"
-                         options:NSCaseInsensitiveSearch].location
-            != NSNotFound) {
+                         options:NSCaseInsensitiveSearch].location != NSNotFound) {
 
-        NSLog(
-            @"[LikeeTweak] HIDING MOLOCO VIEW: %@",
-            className
-        );
+        NSLog(@"[LikeeTweak] HIDING MOLOCO VIEW: %@", className);
 
         view.hidden = YES;
-
         return;
     }
 
-
-    /*
-     * =====================================================
-     * Рекурсивный поиск
-     * =====================================================
-     */
-
-    NSArray *subviews =
-        [view.subviews copy];
+    NSArray *subviews = [view.subviews copy];
 
     for (UIView *subview in subviews) {
-
         [self scanView:subview];
     }
 }
