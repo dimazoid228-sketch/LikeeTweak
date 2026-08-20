@@ -33,6 +33,9 @@
 - (void)scanForAds;
 - (void)scanView:(UIView *)view;
 
+- (void)startAggressiveTimer;
+- (void)stopAggressiveTimer;
+
 @end
 
 
@@ -421,9 +424,9 @@
                 CGRectMake(20.0, 92.0, width - 40.0, 70.0)];
 
     warning.text =
-        @"Тест скрывает рекламные\nVideoPlayView и PlayerContainer.\nBGServerMediaView целиком не скрывается.";
+        @"Тест скрывает рекламные элементы.\nBGServerMediaView скрывается целиком.";
 
-    warning.numberOfLines = 3;
+    warning.numberOfLines = 2;
 
     warning.textColor =
         [[UIColor whiteColor]
@@ -528,7 +531,6 @@
     label.textColor = [UIColor whiteColor];
     label.font =
         [UIFont systemFontOfSize:13.0];
-    label.numberOfLines = 1;
 
     [container addSubview:label];
 
@@ -581,13 +583,16 @@
         );
 
         if (enabled) {
+            [self startAggressiveTimer];
             [self scanForAds];
+        } else {
+            [self stopAggressiveTimer];
         }
     }
 }
 
 
-#pragma mark - Aggressive Advertisement Scan
+#pragma mark - Advertisement Scan
 
 - (void)scanForAds
 {
@@ -616,11 +621,33 @@
     NSString *className =
         NSStringFromClass([view class]);
 
+
     /*
-     * Агрессивно скрываем именно рекламные
-     * video/player контейнеры.
+     * =====================================================
+     * BGServerMediaView
+     * =====================================================
      *
-     * BGServerMediaView специально НЕ скрываем.
+     * ТЕСТОВЫЙ РЕЖИМ:
+     * скрываем весь BGServerMediaView целиком.
+     */
+
+    if ([className isEqualToString:@"BGServerMediaView"]) {
+
+        NSLog(
+            @"[LikeeTweak] HIDING BGServerMediaView: %@",
+            view
+        );
+
+        view.hidden = YES;
+
+        return;
+    }
+
+
+    /*
+     * =====================================================
+     * Рекламные Video / Player / Image контейнеры
+     * =====================================================
      */
 
     if ([className isEqualToString:
@@ -628,33 +655,29 @@
         [className isEqualToString:
             @"BGServerAdVideoPlayerContainer"] ||
         [className isEqualToString:
-            @"BGServerAdImageView"]) {
+            @"BGServerAdImageView"] ||
         [className isEqualToString:
             @"LIKE.BVVideoDetailAdStyle1CardView"] ||
         [className isEqualToString:
             @"BVVideoDetailBigoAdStyle1AdInfoView"] ||
         [className isEqualToString:
-            @"LIKE.BVVideoDetailAdStyle1SmallCardView"];
+            @"LIKE.BVVideoDetailAdStyle1SmallCardView"]) {
 
-        if (!view.hidden) {
+        NSLog(
+            @"[LikeeTweak] HIDING AD VIEW: %@",
+            className
+        );
 
-            NSLog(
-                @"[LikeeTweak] HIDING AD VIEW: %@",
-                className
-            );
-
-            view.hidden = YES;
-        }
+        view.hidden = YES;
 
         return;
     }
 
+
     /*
-     * Moloco-related views.
-     *
-     * Названия проверяются безопасно:
-     * мы не трогаем обычный UIView только потому,
-     * что он находится внутри рекламы.
+     * =====================================================
+     * Moloco
+     * =====================================================
      */
 
     if ([className rangeOfString:@"Moloco"
@@ -667,13 +690,22 @@
         );
 
         view.hidden = YES;
+
         return;
     }
+
+
+    /*
+     * =====================================================
+     * Рекурсивный поиск
+     * =====================================================
+     */
 
     NSArray *subviews =
         [view.subviews copy];
 
     for (UIView *subview in subviews) {
+
         [self scanView:subview];
     }
 }
@@ -691,6 +723,8 @@
                                        selector:@selector(scanForAds)
                                        userInfo:nil
                                         repeats:YES];
+
+    NSLog(@"[LikeeTweak] Advertisement scanner started");
 }
 
 
@@ -699,7 +733,10 @@
     if (self.adTimer != nil) {
 
         [self.adTimer invalidate];
+
         self.adTimer = nil;
+
+        NSLog(@"[LikeeTweak] Advertisement scanner stopped");
     }
 }
 
