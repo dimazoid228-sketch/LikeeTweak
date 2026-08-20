@@ -648,6 +648,12 @@
         return;
     }
 
+    if ([className isEqualToString:@"BVVideoDetailBigoAdStyle1ContainerView"]) {
+        NSLog(@"[LikeeTweak] HIDING BIGO AD CONTAINER: %@", className);
+        view.hidden = YES;
+        return;
+    }
+
     NSArray *subviews = [view.subviews copy];
 
     for (UIView *subview in subviews) {
