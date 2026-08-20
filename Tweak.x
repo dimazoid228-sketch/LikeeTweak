@@ -621,6 +621,17 @@
     NSString *className =
         NSStringFromClass([view class]);
 
+    if ([className isEqualToString:@"BGAdComponentView"]) {
+
+    NSLog(
+        @"[LikeeTweak] HIDING FULL AD COMPONENT: %@",
+        className
+    );
+
+    view.hidden = YES;
+    return;
+}
+
 
     /*
      * =====================================================
