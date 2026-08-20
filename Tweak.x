@@ -631,6 +631,12 @@
             @"BGServerAdVideoPlayerConyainer"] ||
         [className isEqualToString:
             @"BGServerAdImageView"]) {
+        [className isEqualToString:
+            @"LIKE.BVVideoDetailAdStyle1CardView"] ||
+        [className isEqualToString:
+            @"BVVideoDetailBigoAdStyle1AdInfoView"] ||
+        [className isEqualToString:
+            @"LIKE.BVVideoDetailAdStyle1SmallCardView"] ||
 
         if (!view.hidden) {
 
