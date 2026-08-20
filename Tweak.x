@@ -614,17 +614,19 @@
 
 - (void)scanView:(UIView *)view
 {
-    if (view == nil) {
+    if (view == nill) {
         return;
     }
 
     NSString *className =
         NSStringFromClass([view class]);
 
-    if ([className isEqualToString:@"BGAdComponentView"]) {
+    if ([className isEqualToString:@"BGAdComponentView"] ||
+        [className isEqualToString:@"BGAdMediaView"] ||
+        [className isEqualToString:@"BGServerMediaView"]) {
 
     NSLog(
-        @"[LikeeTweak] HIDING FULL AD COMPONENT: %@",
+        @"[LikeeTweak] HIDING AD CONTAINER: %@",
         className
     );
 
