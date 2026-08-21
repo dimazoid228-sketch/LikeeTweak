@@ -873,12 +873,17 @@ if ([className isEqualToString:@"BVVideoDetailAdViewController"]) {
 {
     %orig;
 
+    UIView *adView = (UIView *)self;
+
     NSLog(@"[LikeeTweak] BIGO CONTAINER ATTACHED");
-    NSLog(@"[LikeeTweak] FRAME: %@", NSStringFromCGRect(self.frame));
+    NSLog(@"[LikeeTweak] CLASS: %@", NSStringFromClass([adView class]));
+    NSLog(@"[LikeeTweak] FRAME: %@", NSStringFromCGRect(adView.frame));
 
     dispatch_async(dispatch_get_main_queue(), ^{
-        self.hidden = YES;
-        self.alpha = 0.0;
+        UIView *target = (UIView *)self;
+
+        target.hidden = YES;
+        target.alpha = 0.0;
 
         NSLog(@"[LikeeTweak] BIGO CONTAINER HIDDEN");
     });
