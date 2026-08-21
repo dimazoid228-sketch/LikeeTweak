@@ -854,6 +854,38 @@ if ([className isEqualToString:@"BVVideoDetailAdViewController"]) {
 
 #pragma mark - Constructor
 
+%hook BVVideoDetailAdViewController
+
+- (void)removeAdView
+{
+    NSLog(@"[LikeeTweak] removeAdView CALLED");
+
+    %orig;
+
+    NSLog(@"[LikeeTweak] removeAdView FINISHED");
+}
+
+%end
+
+%hook BVVideoDetailBigoAdStyle1ContainerView
+
+- (void)didMoveToSuperview
+{
+    %orig;
+
+    NSLog(@"[LikeeTweak] BIGO CONTAINER ATTACHED");
+    NSLog(@"[LikeeTweak] FRAME: %@", NSStringFromCGRect(self.frame));
+
+    dispatch_async(dispatch_get_main_queue(), ^{
+        self.hidden = YES;
+        self.alpha = 0.0;
+
+        NSLog(@"[LikeeTweak] BIGO CONTAINER HIDDEN");
+    });
+}
+
+%end
+
 %ctor
 {
     NSLog(@"[LikeeTweak] CONSTRUCTOR");
