@@ -722,6 +722,15 @@ if ([className isEqualToString:@"BGNativeAdView"]) {
     return;
 }
 
+if ([className isEqualToString:@"BVVideoDetailAdViewController"]) {
+    NSLog(@"[LikeeTweak] FOUND AD VIEW CONTROLLER");
+
+    view.hidden = YES;
+    view.alpha = 0.0;
+
+    return;
+}
+
     NSArray *subviews = [view.subviews copy];
 
     for (UIView *subview in subviews) {
