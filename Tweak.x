@@ -650,15 +650,72 @@
 
     if ([className isEqualToString:@"BVVideoDetailBigoAdStyle1ContainerView"]) {
 
-    NSLog(@"[LikeeTweak] BIGO FRAME: %@",
-          NSStringFromCGRect(view.frame));
+    NSString *superClass =
+        view.superview
+        ? NSStringFromClass([view.superview class])
+        : @"nil";
 
-    NSLog(@"[LikeeTweak] BIGO SUPERVIEW: %@",
-          NSStringFromClass([view.superview class]));
+    NSString *info =
+        [NSString stringWithFormat:
+            @"BIGO AD\n"
+             "FRAME: %@\n"
+             "SUPER: %@\n"
+             "SUPER FRAME: %@",
+            NSStringFromCGRect(view.frame),
+            superClass,
+            view.superview
+                ? NSStringFromCGRect(view.superview.frame)
+                : @"nil"];
+
+    dispatch_async(dispatch_get_main_queue(), ^{
+
+        UIWindow *window = self.window;
+
+        if (window != nil) {
+
+            UILabel *debug =
+                (UILabel *)[window viewWithTag:987654];
+
+            if (debug == nil) {
+
+                debug =
+                    [[UILabel alloc]
+                        initWithFrame:
+                            CGRectMake(
+                                10.0,
+                                60.0,
+                                408.0,
+                                110.0
+                            )];
+
+                debug.tag = 987654;
+                debug.numberOfLines = 0;
+
+                debug.textColor = [UIColor whiteColor];
+
+                debug.backgroundColor =
+                    [[UIColor blackColor]
+                        colorWithAlphaComponent:0.85];
+
+                debug.font =
+                    [UIFont systemFontOfSize:11.0];
+
+                debug.layer.cornerRadius = 10.0;
+                debug.layer.masksToBounds = YES;
+
+                [window addSubview:debug];
+            }
+
+            debug.text = info;
+        }
+    });
+
+    NSLog(@"[LikeeTweak] %@", info);
 
     view.hidden = YES;
     return;
 }
+
     NSArray *subviews = [view.subviews copy];
 
     for (UIView *subview in subviews) {
