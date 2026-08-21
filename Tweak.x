@@ -867,17 +867,17 @@ if ([className isEqualToString:@"BVVideoDetailAdViewController"]) {
 
 %end
 
-%hook BVVideoDetailBigoAdStyle1ContainerView
+%hook BGAdMediaView
 
 - (void)didMoveToSuperview
 {
     %orig;
 
-    UIView *adView = (UIView *)self;
+    UIView *mediaView = (UIView *)self;
 
-    NSLog(@"[LikeeTweak] BIGO CONTAINER ATTACHED");
-    NSLog(@"[LikeeTweak] CLASS: %@", NSStringFromClass([adView class]));
-    NSLog(@"[LikeeTweak] FRAME: %@", NSStringFromCGRect(adView.frame));
+    NSLog(@"[LikeeTweak] BGAdMediaView ATTACHED");
+    NSLog(@"[LikeeTweak] BGAdMediaView FRAME: %@",
+          NSStringFromCGRect(mediaView.frame));
 
     dispatch_async(dispatch_get_main_queue(), ^{
         UIView *target = (UIView *)self;
@@ -885,7 +885,7 @@ if ([className isEqualToString:@"BVVideoDetailAdViewController"]) {
         target.hidden = YES;
         target.alpha = 0.0;
 
-        NSLog(@"[LikeeTweak] BIGO CONTAINER HIDDEN");
+        NSLog(@"[LikeeTweak] BGAdMediaView HIDDEN");
     });
 }
 
