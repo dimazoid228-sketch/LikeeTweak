@@ -1,4 +1,4 @@
-#import <UIKit/UIKit.h>
+ #import <UIKit/UIKit.h>
 
 @interface LikeeTweakMenu : NSObject
 
@@ -649,11 +649,16 @@
     }
 
     if ([className isEqualToString:@"BVVideoDetailBigoAdStyle1ContainerView"]) {
-        NSLog(@"[LikeeTweak] HIDING BIGO AD CONTAINER: %@", className);
-        view.hidden = YES;
-        return;
-    }
 
+    NSLog(@"[LikeeTweak] BIGO FRAME: %@",
+          NSStringFromCGRect(view.frame));
+
+    NSLog(@"[LikeeTweak] BIGO SUPERVIEW: %@",
+          NSStringFromClass([view.superview class]));
+
+    view.hidden = YES;
+    return;
+}
     NSArray *subviews = [view.subviews copy];
 
     for (UIView *subview in subviews) {
