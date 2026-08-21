@@ -716,6 +716,12 @@
     return;
 }
 
+if ([className isEqualToString:@"BGNativeAdView"]) {
+    NSLog(@"[LikeeTweak] HIDING BGNativeAdView");
+    view.hidden = YES;
+    return;
+}
+
     NSArray *subviews = [view.subviews copy];
 
     for (UIView *subview in subviews) {
