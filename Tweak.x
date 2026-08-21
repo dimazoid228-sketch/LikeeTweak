@@ -1,9 +1,6 @@
 #import <UIKit/UIKit.h>
 
-#pragma mark - LikeeTweak Menu
-
 @interface LikeeTweakMenu : NSObject
-
 @property (nonatomic, strong) UIButton *button;
 @property (nonatomic, strong) UIView *menuView;
 @property (nonatomic, strong) UIView *menuHeader;
@@ -12,32 +9,124 @@
 @property (nonatomic, strong) UIWindow *window;
 
 + (instancetype)sharedInstance;
-
 - (void)installButton;
 - (void)buttonTapped:(UIButton *)sender;
 - (void)buttonDragged:(UIPanGestureRecognizer *)gesture;
-
 - (void)showMenu;
 - (void)hideMenu;
-
 - (void)closeButtonTapped:(UIButton *)sender;
 - (void)menuDragged:(UIPanGestureRecognizer *)gesture;
-
 - (void)switchChanged:(UISwitch *)sender;
 - (void)addSwitchItem:(NSString *)title
                  icon:(NSString *)icon
                   key:(NSString *)key
                     y:(CGFloat)y
                  menu:(UIView *)menu;
-
+- (void)scanForAds;
+- (void)scanView:(UIView *)view;
+- (void)startAdObserver;
+- (void)stopAdObserver;
 @end
 
+#pragma mark - Advertisement helpers
+
+static BOOL LTIsAdClass(UIView *view)
+{
+    if (!view) return NO;
+
+    NSString *name = NSStringFromClass([view class]);
+
+    static NSArray *exact = nil;
+    static dispatch_once_t onceToken;
+
+    dispatch_once(&onceToken, ^{
+        exact = @[
+            @"BGAdComponentView",
+            @"BGAdMediaView",
+            @"BGServerMediaView",
+            @"BGServerAdVideoPlayView",
+            @"BGServerAdVideoPlayerContainer",
+            @"BGServerAdImageView",
+            @"BGNativeAdView",
+            @"BVVideoDetailBigoAdStyle1ContainerView",
+            @"BVVideoDetailBigoAdStyle1AdInfoView",
+            @"LIKE.BVVideoDetailAdStyle1CardView",
+            @"LIKE.BVVideoDetailAdStyle1SmallCardView"
+        ];
+    });
+
+    if ([exact containsObject:name])
+        return YES;
+
+    if ([name rangeOfString:@"Moloco"
+                     options:NSCaseInsensitiveSearch].location != NSNotFound)
+        return YES;
+
+    if ([name rangeOfString:@"AdCard"
+                     options:NSCaseInsensitiveSearch].location != NSNotFound)
+        return YES;
+
+    if ([name rangeOfString:@"AdContainer"
+                     options:NSCaseInsensitiveSearch].location != NSNotFound)
+        return YES;
+
+    if ([name rangeOfString:@"NativeAd"
+                     options:NSCaseInsensitiveSearch].location != NSNotFound)
+        return YES;
+
+    return NO;
+}
+
+static UIView *LTBestAdAncestor(UIView *view)
+{
+    UIView *best = nil;
+    UIView *current = view;
+
+    for (NSInteger level = 0;
+         current && level < 8;
+         level++) {
+
+        if (LTIsAdClass(current)) {
+            best = current;
+        }
+
+        if ([current isKindOfClass:[UIWindow class]])
+            break;
+
+        current = current.superview;
+    }
+
+    return best ?: view;
+}
+
+static void LTRemoveAdViewImmediately(UIView *view)
+{
+    if (!view)
+        return;
+
+    dispatch_async(dispatch_get_main_queue(), ^{
+
+        if (!view || view.superview == nil)
+            return;
+
+        UIView *target =
+            LTBestAdAncestor(view);
+
+        NSLog(@"[LikeeTweak] REMOVE AD: %@ frame=%@",
+              NSStringFromClass([target class]),
+              NSStringFromCGRect(target.frame));
+
+        [target removeFromSuperview];
+    });
+}
+
+#pragma mark - Menu
 
 @implementation LikeeTweakMenu
 
 + (instancetype)sharedInstance
 {
-    static LikeeTweakMenu *instance = nil;
+    static LikeeTweakMenu *instance;
     static dispatch_once_t onceToken;
 
     dispatch_once(&onceToken, ^{
@@ -46,9 +135,6 @@
 
     return instance;
 }
-
-
-#pragma mark - Colors
 
 - (UIColor *)purpleColor
 {
@@ -82,16 +168,14 @@
                            alpha:0.88];
 }
 
-
 #pragma mark - Install Button
 
 - (void)installButton
 {
     dispatch_async(dispatch_get_main_queue(), ^{
 
-        if (self.button != nil) {
+        if (self.button)
             return;
-        }
 
         UIWindow *window = nil;
 
@@ -101,13 +185,11 @@
                  UIApplication.sharedApplication.connectedScenes) {
 
                 if (scene.activationState !=
-                    UISceneActivationStateForegroundActive) {
+                    UISceneActivationStateForegroundActive)
                     continue;
-                }
 
-                if (![scene isKindOfClass:[UIWindowScene class]]) {
+                if (![scene isKindOfClass:[UIWindowScene class]])
                     continue;
-                }
 
                 for (UIWindow *candidate in
                      ((UIWindowScene *)scene).windows) {
@@ -118,17 +200,15 @@
                     }
                 }
 
-                if (window != nil) {
+                if (window)
                     break;
-                }
             }
         }
 
-        if (window == nil) {
+        if (!window)
             window = UIApplication.sharedApplication.keyWindow;
-        }
 
-        if (window == nil) {
+        if (!window) {
             NSLog(@"[LikeeTweak] Window not found");
             return;
         }
@@ -181,11 +261,8 @@
         [window addSubview:button];
 
         self.button = button;
-
-        NSLog(@"[LikeeTweak] Button installed");
     });
 }
-
 
 #pragma mark - Button Drag
 
@@ -206,27 +283,23 @@
                     inView:button.superview];
 }
 
-
 #pragma mark - Button Tap
 
 - (void)buttonTapped:(UIButton *)sender
 {
-    if (self.menuView != nil) {
+    if (self.menuView)
         [self hideMenu];
-    } else {
+    else
         [self showMenu];
-    }
 }
-
 
 #pragma mark - Menu
 
 - (void)showMenu
 {
-    if (self.menuView != nil ||
-        self.window == nil) {
+    if (self.menuView ||
+        !self.window)
         return;
-    }
 
     CGFloat width = 275.0;
     CGFloat height = 390.0;
@@ -240,9 +313,8 @@
         self.button.frame.origin.y
         - 130.0;
 
-    if (y < 35.0) {
+    if (y < 35.0)
         y = 35.0;
-    }
 
     if (y + height >
         self.window.bounds.size.height - 20.0) {
@@ -257,14 +329,13 @@
         [[UIView alloc]
             initWithFrame:self.window.bounds];
 
-    overlay.backgroundColor = [UIColor clearColor];
+    overlay.backgroundColor =
+        [UIColor clearColor];
 
-    UITapGestureRecognizer *overlayTap =
+    [overlay addGestureRecognizer:
         [[UITapGestureRecognizer alloc]
             initWithTarget:self
-                    action:@selector(hideMenu)];
-
-    [overlay addGestureRecognizer:overlayTap];
+                    action:@selector(hideMenu)]];
 
     [self.window addSubview:overlay];
 
@@ -293,7 +364,7 @@
     UIView *header =
         [[UIView alloc]
             initWithFrame:
-                CGRectMake(0.0, 0.0, width, 82.0)];
+                CGRectMake(0, 0, width, 82)];
 
     header.backgroundColor =
         [[self purpleColor]
@@ -313,28 +384,30 @@
     UILabel *title =
         [[UILabel alloc]
             initWithFrame:
-                CGRectMake(20.0, 12.0, width - 80.0, 32.0)];
+                CGRectMake(20, 12, width - 80, 32)];
 
     title.text = @"LikeeTweak";
     title.textColor = [UIColor whiteColor];
+
     title.font =
-        [UIFont boldSystemFontOfSize:21.0];
+        [UIFont boldSystemFontOfSize:21];
 
     [header addSubview:title];
 
     UILabel *subtitle =
         [[UILabel alloc]
             initWithFrame:
-                CGRectMake(20.0, 43.0, width - 80.0, 22.0)];
+                CGRectMake(20, 43, width - 80, 22)];
 
-    subtitle.text = @"Экспериментальный режим";
+    subtitle.text =
+        @"Экспериментальный режим";
 
     subtitle.textColor =
         [[UIColor whiteColor]
             colorWithAlphaComponent:0.55];
 
     subtitle.font =
-        [UIFont systemFontOfSize:12.0];
+        [UIFont systemFontOfSize:12];
 
     [header addSubview:subtitle];
 
@@ -342,7 +415,7 @@
         [UIButton buttonWithType:UIButtonTypeSystem];
 
     closeButton.frame =
-        CGRectMake(width - 52.0, 18.0, 36.0, 36.0);
+        CGRectMake(width - 52, 18, 36, 36);
 
     [closeButton setTitle:@"×"
                  forState:UIControlStateNormal];
@@ -351,14 +424,14 @@
                       forState:UIControlStateNormal];
 
     closeButton.titleLabel.font =
-        [UIFont systemFontOfSize:28.0
+        [UIFont systemFontOfSize:28
                           weight:UIFontWeightLight];
 
     closeButton.backgroundColor =
         [[UIColor whiteColor]
             colorWithAlphaComponent:0.08];
 
-    closeButton.layer.cornerRadius = 18.0;
+    closeButton.layer.cornerRadius = 18;
 
     [closeButton addTarget:self
                     action:@selector(closeButtonTapped:)
@@ -369,7 +442,7 @@
     UIView *line =
         [[UIView alloc]
             initWithFrame:
-                CGRectMake(20.0, 81.0, width - 40.0, 1.0)];
+                CGRectMake(20, 81, width - 40, 1)];
 
     line.backgroundColor =
         [[self purpleColor]
@@ -380,12 +453,11 @@
     UIScrollView *scroll =
         [[UIScrollView alloc]
             initWithFrame:
-                CGRectMake(0.0,
-                           82.0,
-                           width,
-                           height - 82.0)];
+                CGRectMake(0, 82, width, height - 82)];
 
-    scroll.backgroundColor = [UIColor clearColor];
+    scroll.backgroundColor =
+        [UIColor clearColor];
+
     scroll.showsVerticalScrollIndicator = YES;
 
     [menu addSubview:scroll];
@@ -395,40 +467,34 @@
     UILabel *section =
         [[UILabel alloc]
             initWithFrame:
-                CGRectMake(20.0,
-                           12.0,
-                           width - 40.0,
-                           22.0)];
+                CGRectMake(20, 12, width - 40, 22)];
 
-    section.text = @"ЭКСПЕРИМЕНТ";
+    section.text = @"РЕКЛАМА";
 
     section.textColor =
         [[self lightPurpleColor]
             colorWithAlphaComponent:0.9];
 
     section.font =
-        [UIFont boldSystemFontOfSize:11.0];
+        [UIFont boldSystemFontOfSize:11];
 
     [scroll addSubview:section];
 
     [self addSwitchItem:
-        @"Агрессивный фильтр"
+        @"Убирать рекламу из рекомендаций"
         icon:@"✦"
         key:@"LikeeTweakAggressive"
-        y:38.0
+        y:38
         menu:scroll];
 
     UILabel *warning =
         [[UILabel alloc]
             initWithFrame:
-                CGRectMake(20.0,
-                           92.0,
-                           width - 40.0,
-                           70.0)];
+                CGRectMake(20, 92, width - 40, 58)];
 
     warning.text =
-        @"Тестирует рекламный контроллер.\n"
-         @"Сканирование и таймер отключены.";
+        @"Удаляется рекламный контейнер,\n"
+         "а не только картинка/видео.";
 
     warning.numberOfLines = 2;
 
@@ -437,17 +503,14 @@
             colorWithAlphaComponent:0.45];
 
     warning.font =
-        [UIFont systemFontOfSize:11.0];
+        [UIFont systemFontOfSize:11];
 
     [scroll addSubview:warning];
 
     UILabel *section2 =
         [[UILabel alloc]
             initWithFrame:
-                CGRectMake(20.0,
-                           180.0,
-                           width - 40.0,
-                           22.0)];
+                CGRectMake(20, 170, width - 40, 22)];
 
     section2.text = @"ИНТЕРФЕЙС";
 
@@ -456,7 +519,7 @@
             colorWithAlphaComponent:0.9];
 
     section2.font =
-        [UIFont boldSystemFontOfSize:11.0];
+        [UIFont boldSystemFontOfSize:11];
 
     [scroll addSubview:section2];
 
@@ -464,20 +527,20 @@
         @"Компактный интерфейс"
         icon:@"◆"
         key:@"LikeeTweakCompact"
-        y:206.0
+        y:196
         menu:scroll];
 
     [self addSwitchItem:
         @"Скрыть лишние элементы"
         icon:@"◈"
         key:@"LikeeTweakHideUI"
-        y:254.0
+        y:244
         menu:scroll];
 
     scroll.contentSize =
-        CGSizeMake(width, 330.0);
+        CGSizeMake(width, 315);
 
-    menu.alpha = 0.0;
+    menu.alpha = 0;
 
     menu.transform =
         CGAffineTransformMakeScale(0.92, 0.92);
@@ -485,13 +548,12 @@
     [UIView animateWithDuration:0.18
                      animations:^{
 
-        menu.alpha = 1.0;
+        menu.alpha = 1;
 
         menu.transform =
             CGAffineTransformIdentity;
     }];
 }
-
 
 #pragma mark - Switch
 
@@ -505,48 +567,43 @@
         [[UIView alloc]
             initWithFrame:
                 CGRectMake(
-                    15.0,
+                    15,
                     y,
-                    menu.bounds.size.width - 30.0,
-                    40.0
+                    menu.bounds.size.width - 30,
+                    40
                 )];
 
     container.backgroundColor =
         [self itemColor];
 
-    container.layer.cornerRadius = 11.0;
+    container.layer.cornerRadius = 11;
 
     [menu addSubview:container];
 
     UILabel *iconLabel =
         [[UILabel alloc]
             initWithFrame:
-                CGRectMake(12.0,
-                           5.0,
-                           25.0,
-                           30.0)];
+                CGRectMake(12, 5, 25, 30)];
 
     iconLabel.text = icon;
-    iconLabel.textColor = [self lightPurpleColor];
+    iconLabel.textColor =
+        [self lightPurpleColor];
 
     iconLabel.font =
-        [UIFont systemFontOfSize:16.0];
+        [UIFont systemFontOfSize:16];
 
     [container addSubview:iconLabel];
 
     UILabel *label =
         [[UILabel alloc]
             initWithFrame:
-                CGRectMake(42.0,
-                           0.0,
-                           150.0,
-                           40.0)];
+                CGRectMake(42, 0, 170, 40)];
 
     label.text = title;
     label.textColor = [UIColor whiteColor];
 
     label.font =
-        [UIFont systemFontOfSize:13.0];
+        [UIFont systemFontOfSize:13];
 
     [container addSubview:label];
 
@@ -554,18 +611,18 @@
         [[UISwitch alloc]
             initWithFrame:
                 CGRectMake(
-                    container.bounds.size.width - 59.0,
-                    5.0,
-                    48.0,
-                    30.0
+                    container.bounds.size.width - 59,
+                    5,
+                    48,
+                    30
                 )];
 
-    BOOL enabled =
+    toggle.on =
         [[NSUserDefaults standardUserDefaults]
             boolForKey:key];
 
-    toggle.on = enabled;
-    toggle.onTintColor = [self purpleColor];
+    toggle.onTintColor =
+        [self purpleColor];
 
     toggle.transform =
         CGAffineTransformMakeScale(0.78, 0.78);
@@ -579,7 +636,6 @@
     [container addSubview:toggle];
 }
 
-
 - (void)switchChanged:(UISwitch *)sender
 {
     NSString *key =
@@ -591,24 +647,95 @@
         setBool:enabled
         forKey:key];
 
-    if ([key isEqualToString:@"LikeeTweakAggressive"]) {
+    if ([key isEqualToString:
+                @"LikeeTweakAggressive"]) {
 
-        NSLog(
-            @"[LikeeTweak] Ad controller filter: %@",
-            enabled ? @"ON" : @"OFF"
-        );
+        if (enabled) {
+            [self startAdObserver];
+            [self scanForAds];
+        } else {
+            [self stopAdObserver];
+        }
     }
 }
 
+#pragma mark - Scan
+
+- (void)scanForAds
+{
+    if (![[NSUserDefaults standardUserDefaults]
+            boolForKey:@"LikeeTweakAggressive"])
+        return;
+
+    dispatch_async(dispatch_get_main_queue(), ^{
+
+        for (UIWindow *window in
+             UIApplication.sharedApplication.windows) {
+
+            [self scanView:window];
+        }
+    });
+}
+
+- (void)scanView:(UIView *)view
+{
+    if (!view)
+        return;
+
+    if (LTIsAdClass(view)) {
+
+        LTRemoveAdViewImmediately(view);
+        return;
+    }
+
+    NSArray *subviews =
+        [view.subviews copy];
+
+    for (UIView *subview in subviews) {
+        [self scanView:subview];
+    }
+}
+
+#pragma mark - Observer
+
+- (void)startAdObserver
+{
+    [[NSNotificationCenter defaultCenter]
+        addObserver:self
+           selector:@selector(scanForAds)
+               name:UIApplicationDidBecomeActiveNotification
+             object:nil];
+
+    [NSObject
+        cancelPreviousPerformRequestsWithTarget:self
+                                       selector:@selector(scanForAds)
+                                         object:nil];
+
+    [self performSelector:@selector(scanForAds)
+               withObject:nil
+               afterDelay:0.15];
+}
+
+- (void)stopAdObserver
+{
+    [[NSNotificationCenter defaultCenter]
+        removeObserver:self
+                  name:UIApplicationDidBecomeActiveNotification
+                object:nil];
+
+    [NSObject
+        cancelPreviousPerformRequestsWithTarget:self
+                                       selector:@selector(scanForAds)
+                                         object:nil];
+}
 
 #pragma mark - Menu Drag
 
 - (void)menuDragged:(UIPanGestureRecognizer *)gesture
 {
-    if (self.menuView == nil ||
-        self.window == nil) {
+    if (!self.menuView ||
+        !self.window)
         return;
-    }
 
     CGPoint translation =
         [gesture translationInView:self.window];
@@ -620,29 +747,36 @@
     center.y += translation.y;
 
     CGFloat halfWidth =
-        self.menuView.bounds.size.width / 2.0;
+        self.menuView.bounds.size.width / 2;
 
     CGFloat halfHeight =
-        self.menuView.bounds.size.height / 2.0;
+        self.menuView.bounds.size.height / 2;
 
     center.x =
-        MAX(halfWidth + 5.0,
-            MIN(center.x,
+        MAX(
+            halfWidth + 5,
+            MIN(
+                center.x,
                 self.window.bounds.size.width
-                - halfWidth - 5.0));
+                - halfWidth - 5
+            )
+        );
 
     center.y =
-        MAX(halfHeight + 5.0,
-            MIN(center.y,
+        MAX(
+            halfHeight + 5,
+            MIN(
+                center.y,
                 self.window.bounds.size.height
-                - halfHeight - 5.0));
+                - halfHeight - 5
+            )
+        );
 
     self.menuView.center = center;
 
     [gesture setTranslation:CGPointZero
                     inView:self.window];
 }
-
 
 #pragma mark - Close
 
@@ -651,22 +785,23 @@
     [self hideMenu];
 }
 
-
 - (void)hideMenu
 {
     UIView *menu = self.menuView;
 
-    if (menu == nil) {
+    if (!menu)
         return;
-    }
 
     [UIView animateWithDuration:0.15
                      animations:^{
 
-        menu.alpha = 0.0;
+        menu.alpha = 0;
 
         menu.transform =
-            CGAffineTransformMakeScale(0.92, 0.92);
+            CGAffineTransformMakeScale(
+                0.92,
+                0.92
+            );
 
     }
     completion:^(BOOL finished) {
@@ -683,109 +818,189 @@
 
 @end
 
+#pragma mark - Event-driven advertisement hooks
 
-#pragma mark - Advertisement Controller
+%hook BGAdMediaView
 
-@interface BVVideoDetailAdViewController : UIViewController
-
-- (void)removeAdView;
-
-- (UIView *)adContainerView;
-- (UIView *)nativeAdView;
-
-@end
-
-
-%hook BVVideoDetailAdViewController
-
-- (void)removeAdView
+- (void)didMoveToSuperview
 {
-    NSLog(@"[LikeeTweak] removeAdView CALLED");
-
     %orig;
 
-    NSLog(@"[LikeeTweak] removeAdView FINISHED");
-
-    if (![[NSUserDefaults standardUserDefaults]
+    if ([[NSUserDefaults standardUserDefaults]
             boolForKey:@"LikeeTweakAggressive"]) {
-        return;
+
+        NSLog(@"[LikeeTweak] BGAdMediaView inserted");
+
+        LTRemoveAdViewImmediately(
+            (UIView *)self
+        );
     }
-
-    dispatch_async(dispatch_get_main_queue(), ^{
-
-        @try {
-
-            UIView *container =
-                [self adContainerView];
-
-            UIView *nativeView =
-                [self nativeAdView];
-
-            NSLog(
-                @"[LikeeTweak] adContainerView = %@",
-                container
-            );
-
-            NSLog(
-                @"[LikeeTweak] nativeAdView = %@",
-                nativeView
-            );
-
-            /*
-             * Не удаляем объекты из иерархии.
-             * Только делаем их невидимыми.
-             */
-
-            if (container != nil) {
-
-                container.alpha = 0.0;
-                container.hidden = YES;
-
-                NSLog(
-                    @"[LikeeTweak] adContainerView hidden"
-                );
-            }
-
-            if (nativeView != nil) {
-
-                nativeView.alpha = 0.0;
-                nativeView.hidden = YES;
-
-                NSLog(
-                    @"[LikeeTweak] nativeAdView hidden"
-                );
-            }
-
-        }
-        @catch (NSException *exception) {
-
-            NSLog(
-                @"[LikeeTweak] Exception while hiding ad: %@",
-                exception
-            );
-        }
-    });
 }
 
 %end
 
+%hook BGAdComponentView
+
+- (void)didMoveToSuperview
+{
+    %orig;
+
+    if ([[NSUserDefaults standardUserDefaults]
+            boolForKey:@"LikeeTweakAggressive"]) {
+
+        NSLog(@"[LikeeTweak] BGAdComponentView inserted");
+
+        LTRemoveAdViewImmediately(
+            (UIView *)self
+        );
+    }
+}
+
+%end
+
+%hook BGServerMediaView
+
+- (void)didMoveToSuperview
+{
+    %orig;
+
+    if ([[NSUserDefaults standardUserDefaults]
+            boolForKey:@"LikeeTweakAggressive"]) {
+
+        NSLog(@"[LikeeTweak] BGServerMediaView inserted");
+
+        LTRemoveAdViewImmediately(
+            (UIView *)self
+        );
+    }
+}
+
+%end
+
+%hook BGNativeAdView
+
+- (void)didMoveToSuperview
+{
+    %orig;
+
+    if ([[NSUserDefaults standardUserDefaults]
+            boolForKey:@"LikeeTweakAggressive"]) {
+
+        NSLog(@"[LikeeTweak] BGNativeAdView inserted");
+
+        LTRemoveAdViewImmediately(
+            (UIView *)self
+        );
+    }
+}
+
+%end
+
+%hook BVVideoDetailBigoAdStyle1ContainerView
+
+- (void)didMoveToSuperview
+{
+    %orig;
+
+    if ([[NSUserDefaults standardUserDefaults]
+            boolForKey:@"LikeeTweakAggressive"]) {
+
+        NSLog(@"[LikeeTweak] BIGO ad container inserted");
+
+        LTRemoveAdViewImmediately(
+            (UIView *)self
+        );
+    }
+}
+
+%end
+
+%hook LIKE.BVVideoDetailAdStyle1CardView
+
+- (void)didMoveToSuperview
+{
+    %orig;
+
+    if ([[NSUserDefaults standardUserDefaults]
+            boolForKey:@"LikeeTweakAggressive"]) {
+
+        NSLog(@"[LikeeTweak] Ad card inserted");
+
+        LTRemoveAdViewImmediately(
+            (UIView *)self
+        );
+    }
+}
+
+%end
+
+%hook LIKE.BVVideoDetailAdStyle1SmallCardView
+
+- (void)didMoveToSuperview
+{
+    %orig;
+
+    if ([[NSUserDefaults standardUserDefaults]
+            boolForKey:@"LikeeTweakAggressive"]) {
+
+        NSLog(@"[LikeeTweak] Small ad card inserted");
+
+        LTRemoveAdViewImmediately(
+            (UIView *)self
+        );
+    }
+}
+
+%end
+
+%hook BGServerAdVideoPlayView
+
+- (void)didMoveToSuperview
+{
+    %orig;
+
+    if ([[NSUserDefaults standardUserDefaults]
+            boolForKey:@"LikeeTweakAggressive"]) {
+
+        NSLog(@"[LikeeTweak] Ad video view inserted");
+
+        LTRemoveAdViewImmediately(
+            (UIView *)self
+        );
+    }
+}
+
+%end
+
+%hook BGServerAdImageView
+
+- (void)didMoveToSuperview
+{
+    %orig;
+
+    if ([[NSUserDefaults standardUserDefaults]
+            boolForKey:@"LikeeTweakAggressive"]) {
+
+        NSLog(@"[LikeeTweak] Ad image view inserted");
+
+        LTRemoveAdViewImmediately(
+            (UIView *)self
+        );
+    }
+}
+
+%end
 
 #pragma mark - Constructor
 
 %ctor
 {
-    NSLog(@"[LikeeTweak] CONSTRUCTOR");
-
-    /*
-     * Никакого сканирования окон.
-     * Никакого NSTimer.
-     * Никакого BGAdMediaView hook.
-     */
+    NSLog(@"[LikeeTweak] Constructor");
 
     dispatch_after(
         dispatch_time(
             DISPATCH_TIME_NOW,
-            3 * NSEC_PER_SEC
+            2 * NSEC_PER_SEC
         ),
         dispatch_get_main_queue(),
         ^{
@@ -795,9 +1010,12 @@
 
             [menu installButton];
 
-            NSLog(
-                @"[LikeeTweak] Ready"
-            );
+            if ([[NSUserDefaults standardUserDefaults]
+                    boolForKey:@"LikeeTweakAggressive"]) {
+
+                [menu startAdObserver];
+                [menu scanForAds];
+            }
         }
     );
 }
