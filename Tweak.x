@@ -1,4 +1,6 @@
- #import <UIKit/UIKit.h>
+#import <UIKit/UIKit.h>
+
+#pragma mark - LikeeTweak Menu
 
 @interface LikeeTweakMenu : NSObject
 
@@ -8,7 +10,6 @@
 @property (nonatomic, strong) UIView *overlay;
 @property (nonatomic, strong) UIScrollView *scrollView;
 @property (nonatomic, strong) UIWindow *window;
-@property (nonatomic, strong) NSTimer *adTimer;
 
 + (instancetype)sharedInstance;
 
@@ -23,18 +24,11 @@
 - (void)menuDragged:(UIPanGestureRecognizer *)gesture;
 
 - (void)switchChanged:(UISwitch *)sender;
-
 - (void)addSwitchItem:(NSString *)title
                  icon:(NSString *)icon
                   key:(NSString *)key
                     y:(CGFloat)y
                  menu:(UIView *)menu;
-
-- (void)scanForAds;
-- (void)scanView:(UIView *)view;
-
-- (void)startAggressiveTimer;
-- (void)stopAggressiveTimer;
 
 @end
 
@@ -386,7 +380,10 @@
     UIScrollView *scroll =
         [[UIScrollView alloc]
             initWithFrame:
-                CGRectMake(0.0, 82.0, width, height - 82.0)];
+                CGRectMake(0.0,
+                           82.0,
+                           width,
+                           height - 82.0)];
 
     scroll.backgroundColor = [UIColor clearColor];
     scroll.showsVerticalScrollIndicator = YES;
@@ -398,7 +395,10 @@
     UILabel *section =
         [[UILabel alloc]
             initWithFrame:
-                CGRectMake(20.0, 12.0, width - 40.0, 22.0)];
+                CGRectMake(20.0,
+                           12.0,
+                           width - 40.0,
+                           22.0)];
 
     section.text = @"ЭКСПЕРИМЕНТ";
 
@@ -421,10 +421,14 @@
     UILabel *warning =
         [[UILabel alloc]
             initWithFrame:
-                CGRectMake(20.0, 92.0, width - 40.0, 70.0)];
+                CGRectMake(20.0,
+                           92.0,
+                           width - 40.0,
+                           70.0)];
 
     warning.text =
-        @"Тест скрывает рекламные элементы.\nBGServerMediaView скрывается целиком.";
+        @"Тестирует рекламный контроллер.\n"
+         @"Сканирование и таймер отключены.";
 
     warning.numberOfLines = 2;
 
@@ -440,7 +444,10 @@
     UILabel *section2 =
         [[UILabel alloc]
             initWithFrame:
-                CGRectMake(20.0, 180.0, width - 40.0, 22.0)];
+                CGRectMake(20.0,
+                           180.0,
+                           width - 40.0,
+                           22.0)];
 
     section2.text = @"ИНТЕРФЕЙС";
 
@@ -479,6 +486,7 @@
                      animations:^{
 
         menu.alpha = 1.0;
+
         menu.transform =
             CGAffineTransformIdentity;
     }];
@@ -513,10 +521,14 @@
     UILabel *iconLabel =
         [[UILabel alloc]
             initWithFrame:
-                CGRectMake(12.0, 5.0, 25.0, 30.0)];
+                CGRectMake(12.0,
+                           5.0,
+                           25.0,
+                           30.0)];
 
     iconLabel.text = icon;
     iconLabel.textColor = [self lightPurpleColor];
+
     iconLabel.font =
         [UIFont systemFontOfSize:16.0];
 
@@ -525,10 +537,14 @@
     UILabel *label =
         [[UILabel alloc]
             initWithFrame:
-                CGRectMake(42.0, 0.0, 150.0, 40.0)];
+                CGRectMake(42.0,
+                           0.0,
+                           150.0,
+                           40.0)];
 
     label.text = title;
     label.textColor = [UIColor whiteColor];
+
     label.font =
         [UIFont systemFontOfSize:13.0];
 
@@ -578,193 +594,9 @@
     if ([key isEqualToString:@"LikeeTweakAggressive"]) {
 
         NSLog(
-            @"[LikeeTweak] Aggressive filter: %@",
+            @"[LikeeTweak] Ad controller filter: %@",
             enabled ? @"ON" : @"OFF"
         );
-
-        if (enabled) {
-            [self startAggressiveTimer];
-            [self scanForAds];
-        } else {
-            [self stopAggressiveTimer];
-        }
-    }
-}
-
-
-#pragma mark - Advertisement Scan
-
-- (void)scanForAds
-{
-    if (![[NSUserDefaults standardUserDefaults]
-            boolForKey:@"LikeeTweakAggressive"]) {
-        return;
-    }
-
-    dispatch_async(dispatch_get_main_queue(), ^{
-
-        for (UIWindow *window in
-             UIApplication.sharedApplication.windows) {
-
-            [self scanView:window];
-        }
-    });
-}
-
-
-- (void)scanView:(UIView *)view
-{
-    NSString *className = NSStringFromClass([view class]);
-
-    if ([className isEqualToString:@"BGAdComponentView"] ||
-        [className isEqualToString:@"BGAdMediaView"] ||
-        [className isEqualToString:@"BGServerMediaView"]) {
-
-        NSLog(@"[LikeeTweak] HIDING AD CONTAINER: %@", className);
-
-        view.hidden = YES;
-        return;
-    }
-
-    if ([className isEqualToString:@"BGServerAdVideoPlayView"] ||
-        [className isEqualToString:@"BGServerAdVideoPlayerContainer"] ||
-        [className isEqualToString:@"BGServerAdImageView"] ||
-        [className isEqualToString:@"LIKE.BVVideoDetailAdStyle1CardView"] ||
-        [className isEqualToString:@"BVVideoDetailBigoAdStyle1AdInfoView"] ||
-        [className isEqualToString:@"LIKE.BVVideoDetailAdStyle1SmallCardView"]) {
-
-        NSLog(@"[LikeeTweak] HIDING AD VIEW: %@", className);
-
-        view.hidden = YES;
-        return;
-    }
-
-    if ([className rangeOfString:@"Moloco"
-                         options:NSCaseInsensitiveSearch].location != NSNotFound) {
-
-        NSLog(@"[LikeeTweak] HIDING MOLOCO VIEW: %@", className);
-
-        view.hidden = YES;
-        return;
-    }
-
-    if ([className isEqualToString:@"BVVideoDetailBigoAdStyle1ContainerView"]) {
-
-    NSString *superClass =
-        view.superview
-        ? NSStringFromClass([view.superview class])
-        : @"nil";
-
-    NSString *info =
-        [NSString stringWithFormat:
-            @"BIGO AD\n"
-             "FRAME: %@\n"
-             "SUPER: %@\n"
-             "SUPER FRAME: %@",
-            NSStringFromCGRect(view.frame),
-            superClass,
-            view.superview
-                ? NSStringFromCGRect(view.superview.frame)
-                : @"nil"];
-
-    dispatch_async(dispatch_get_main_queue(), ^{
-
-        UIWindow *window = self.window;
-
-        if (window != nil) {
-
-            UILabel *debug =
-                (UILabel *)[window viewWithTag:987654];
-
-            if (debug == nil) {
-
-                debug =
-                    [[UILabel alloc]
-                        initWithFrame:
-                            CGRectMake(
-                                10.0,
-                                60.0,
-                                408.0,
-                                110.0
-                            )];
-
-                debug.tag = 987654;
-                debug.numberOfLines = 0;
-
-                debug.textColor = [UIColor whiteColor];
-
-                debug.backgroundColor =
-                    [[UIColor blackColor]
-                        colorWithAlphaComponent:0.85];
-
-                debug.font =
-                    [UIFont systemFontOfSize:11.0];
-
-                debug.layer.cornerRadius = 10.0;
-                debug.layer.masksToBounds = YES;
-
-                [window addSubview:debug];
-            }
-
-            debug.text = info;
-        }
-    });
-
-    NSLog(@"[LikeeTweak] %@", info);
-
-    view.hidden = YES;
-    return;
-}
-
-if ([className isEqualToString:@"BGNativeAdView"]) {
-    NSLog(@"[LikeeTweak] HIDING BGNativeAdView");
-    view.hidden = YES;
-    return;
-}
-
-if ([className isEqualToString:@"BVVideoDetailAdViewController"]) {
-    NSLog(@"[LikeeTweak] FOUND AD VIEW CONTROLLER");
-
-    view.hidden = YES;
-    view.alpha = 0.0;
-
-    return;
-}
-
-    NSArray *subviews = [view.subviews copy];
-
-    for (UIView *subview in subviews) {
-        [self scanView:subview];
-    }
-}
-
-
-#pragma mark - Timer
-
-- (void)startAggressiveTimer
-{
-    [self stopAggressiveTimer];
-
-    self.adTimer =
-        [NSTimer scheduledTimerWithTimeInterval:0.35
-                                         target:self
-                                       selector:@selector(scanForAds)
-                                       userInfo:nil
-                                        repeats:YES];
-
-    NSLog(@"[LikeeTweak] Advertisement scanner started");
-}
-
-
-- (void)stopAggressiveTimer
-{
-    if (self.adTimer != nil) {
-
-        [self.adTimer invalidate];
-
-        self.adTimer = nil;
-
-        NSLog(@"[LikeeTweak] Advertisement scanner stopped");
     }
 }
 
@@ -852,7 +684,17 @@ if ([className isEqualToString:@"BVVideoDetailAdViewController"]) {
 @end
 
 
-#pragma mark - Constructor
+#pragma mark - Advertisement Controller
+
+@interface BVVideoDetailAdViewController : UIViewController
+
+- (void)removeAdView;
+
+- (UIView *)adContainerView;
+- (UIView *)nativeAdView;
+
+@end
+
 
 %hook BVVideoDetailAdViewController
 
@@ -863,37 +705,82 @@ if ([className isEqualToString:@"BVVideoDetailAdViewController"]) {
     %orig;
 
     NSLog(@"[LikeeTweak] removeAdView FINISHED");
-}
 
-%end
-
-%hook BGAdMediaView
-
-- (void)didMoveToSuperview
-{
-    %orig;
-
-    UIView *mediaView = (UIView *)self;
-
-    NSLog(@"[LikeeTweak] BGAdMediaView ATTACHED");
-    NSLog(@"[LikeeTweak] BGAdMediaView FRAME: %@",
-          NSStringFromCGRect(mediaView.frame));
+    if (![[NSUserDefaults standardUserDefaults]
+            boolForKey:@"LikeeTweakAggressive"]) {
+        return;
+    }
 
     dispatch_async(dispatch_get_main_queue(), ^{
-        UIView *target = (UIView *)self;
 
-        target.hidden = YES;
-        target.alpha = 0.0;
+        @try {
 
-        NSLog(@"[LikeeTweak] BGAdMediaView HIDDEN");
+            UIView *container =
+                [self adContainerView];
+
+            UIView *nativeView =
+                [self nativeAdView];
+
+            NSLog(
+                @"[LikeeTweak] adContainerView = %@",
+                container
+            );
+
+            NSLog(
+                @"[LikeeTweak] nativeAdView = %@",
+                nativeView
+            );
+
+            /*
+             * Не удаляем объекты из иерархии.
+             * Только делаем их невидимыми.
+             */
+
+            if (container != nil) {
+
+                container.alpha = 0.0;
+                container.hidden = YES;
+
+                NSLog(
+                    @"[LikeeTweak] adContainerView hidden"
+                );
+            }
+
+            if (nativeView != nil) {
+
+                nativeView.alpha = 0.0;
+                nativeView.hidden = YES;
+
+                NSLog(
+                    @"[LikeeTweak] nativeAdView hidden"
+                );
+            }
+
+        }
+        @catch (NSException *exception) {
+
+            NSLog(
+                @"[LikeeTweak] Exception while hiding ad: %@",
+                exception
+            );
+        }
     });
 }
 
 %end
 
+
+#pragma mark - Constructor
+
 %ctor
 {
     NSLog(@"[LikeeTweak] CONSTRUCTOR");
+
+    /*
+     * Никакого сканирования окон.
+     * Никакого NSTimer.
+     * Никакого BGAdMediaView hook.
+     */
 
     dispatch_after(
         dispatch_time(
@@ -908,13 +795,9 @@ if ([className isEqualToString:@"BVVideoDetailAdViewController"]) {
 
             [menu installButton];
 
-            if ([[NSUserDefaults standardUserDefaults]
-                    boolForKey:@"LikeeTweakAggressive"]) {
-
-                [menu startAggressiveTimer];
-
-                [menu scanForAds];
-            }
+            NSLog(
+                @"[LikeeTweak] Ready"
+            );
         }
     );
 }
