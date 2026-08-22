@@ -9,6 +9,8 @@
 @property (nonatomic, strong) UIScrollView *scrollView;
 @property (nonatomic, strong) UIWindow *window;
 
+@property (nonatomic, strong) NSTimer *adTimer;
+
 + (instancetype)sharedInstance;
 
 - (void)installButton;
@@ -35,18 +37,21 @@
 - (void)startAdObserver;
 - (void)stopAdObserver;
 
-/* DEBUG */
-- (void)showDebugTree;
-- (void)updateDebugTreeText;
-- (void)refreshDebugTree:(UIButton *)sender;
-- (void)closeDebugTree:(UIButton *)sender;
-
 @end
 
 
-#pragma mark - Advertisement helpers
+#pragma mark -
+#pragma mark Advertisement helpers
+#pragma mark -
 
-static BOOL LTIsAdClass(UIView *view)
+static BOOL LTAdFilterEnabled(void)
+{
+    return [[NSUserDefaults standardUserDefaults]
+                boolForKey:@"LikeeTweakAggressive"];
+}
+
+
+static BOOL LTIsCompleteAdCell(UIView *view)
 {
     if (!view)
         return NO;
@@ -54,170 +59,123 @@ static BOOL LTIsAdClass(UIView *view)
     NSString *name =
         NSStringFromClass([view class]);
 
-    static NSArray *exact = nil;
-    static dispatch_once_t onceToken;
-
-    dispatch_once(&onceToken, ^{
-
-        exact = @[
-            @"BGAdComponentView",
-            @"BGAdMediaView",
-            @"BGServerMediaView",
-            @"BGServerAdVideoPlayView",
-            @"BGServerAdVideoPlayerContainer",
-            @"BGServerAdImageView",
-            @"BGNativeAdView",
-            @"BVVideoDetailBigoAdStyle1ContainerView",
-            @"BVVideoDetailBigoAdStyle1AdInfoView",
-            @"LIKE.BVVideoDetailAdStyle1CardView",
-            @"LIKE.BVVideoDetailAdStyle1SmallCardView"
-        ];
-    });
-
-    if ([exact containsObject:name])
-        return YES;
-
-    if ([name rangeOfString:@"Moloco"
-                     options:NSCaseInsensitiveSearch].location != NSNotFound)
-        return YES;
-
-    if ([name rangeOfString:@"AdCard"
-                     options:NSCaseInsensitiveSearch].location != NSNotFound)
-        return YES;
-
-    if ([name rangeOfString:@"AdContainer"
-                     options:NSCaseInsensitiveSearch].location != NSNotFound)
-        return YES;
-
-    if ([name rangeOfString:@"NativeAd"
-                     options:NSCaseInsensitiveSearch].location != NSNotFound)
-        return YES;
-
-    return NO;
+    return [name isEqualToString:
+                @"BVVideoNativeAdTableViewCell"];
 }
 
 
-static UIView *LTBestAdAncestor(UIView *view)
-{
-    UIView *best = nil;
-    UIView *current = view;
-
-    for (NSInteger level = 0;
-         current && level < 8;
-         level++) {
-
-        if (LTIsAdClass(current))
-            best = current;
-
-        if ([current isKindOfClass:[UIWindow class]])
-            break;
-
-        current = current.superview;
-    }
-
-    return best ?: view;
-}
-
-
-static void LTRemoveAdViewImmediately(UIView *view)
+static void LTRemoveCompleteAdCell(UIView *view)
 {
     if (!view)
         return;
 
     dispatch_async(dispatch_get_main_queue(), ^{
 
-        if (!view ||
-            view.superview == nil)
+        if (!view)
             return;
 
-        UIView *target =
-            LTBestAdAncestor(view);
+        if (!view.superview)
+            return;
 
-        NSLog(
-            @"[LikeeTweak] REMOVE AD: %@ frame=%@",
-            NSStringFromClass([target class]),
-            NSStringFromCGRect(target.frame)
-        );
+        /*
+         * Проверяем ещё раз непосредственно
+         * перед удалением.
+         */
 
-        [target removeFromSuperview];
+        if (!LTAdFilterEnabled())
+            return;
+
+        NSString *className =
+            NSStringFromClass([view class]);
+
+        if (![className isEqualToString:
+                @"BVVideoNativeAdTableViewCell"]) {
+            return;
+        }
+
+        NSLog(@"[LikeeTweak] =============================");
+        NSLog(@"[LikeeTweak] COMPLETE AD CELL");
+        NSLog(@"[LikeeTweak] class = %@", className);
+        NSLog(@"[LikeeTweak] frame = %@",
+              NSStringFromCGRect(view.frame));
+        NSLog(@"[LikeeTweak] removing...");
+        NSLog(@"[LikeeTweak] =============================");
+
+        /*
+         * Сначала убираем содержимое.
+         */
+
+        view.hidden = YES;
+        view.alpha = 0.0;
+
+        /*
+         * Запоминаем superview.
+         */
+
+        UIView *parent =
+            view.superview;
+
+        /*
+         * Убираем ячейку из иерархии.
+         */
+
+        [view removeFromSuperview];
+
+        /*
+         * Просим родителя пересчитать layout.
+         */
+
+        [parent setNeedsLayout];
+        [parent layoutIfNeeded];
+
+        /*
+         * Если родитель — таблица,
+         * обновляем layout.
+         */
+
+        if ([parent isKindOfClass:
+                [UITableView class]]) {
+
+            UITableView *table =
+                (UITableView *)parent;
+
+            [table beginUpdates];
+            [table endUpdates];
+
+            [table setNeedsLayout];
+            [table layoutIfNeeded];
+        }
+
+        /*
+         * Иногда Likee держит ячейку
+         * внутри дополнительной UIView.
+         * Поэтому просим layout у всей цепочки.
+         */
+
+        UIView *current =
+            parent;
+
+        for (NSInteger i = 0;
+             current && i < 5;
+             i++) {
+
+            [current setNeedsLayout];
+            [current layoutIfNeeded];
+
+            current =
+                current.superview;
+        }
+
+        NSLog(@"[LikeeTweak] AD CELL REMOVED");
     });
 }
 
 
-#pragma mark - DEBUG TREE
-
-static void LTBuildViewTree(UIView *view,
-                            NSInteger level,
-                            NSMutableString *output)
-{
-    if (!view)
-        return;
-
-    /*
-     * Ограничиваем глубину, чтобы не получить
-     * тысячи строк от внутренних UILabel/UIImageView.
-     */
-    if (level > 8)
-        return;
-
-    NSMutableString *indent =
-        [NSMutableString string];
-
-    for (NSInteger i = 0;
-         i < level;
-         i++) {
-
-        [indent appendString:@"    "];
-    }
-
-    NSString *className =
-        NSStringFromClass([view class]);
-
-    BOOL looksLikeAd =
-        LTIsAdClass(view);
-
-    NSString *line =
-        [NSString stringWithFormat:
-            @"%@%@%@\n"
-             "%@frame: %@\n"
-             "%@hidden: %@   alpha: %.2f\n\n",
-
-            indent,
-
-            looksLikeAd
-                ? @"[*** AD ***] "
-                : @"",
-
-            className,
-
-            indent,
-            NSStringFromCGRect(view.frame),
-
-            indent,
-            view.hidden ? @"YES" : @"NO",
-            view.alpha
-        ];
-
-    [output appendString:line];
-
-    NSArray *children =
-        [view.subviews copy];
-
-    for (UIView *child in children) {
-
-        LTBuildViewTree(
-            child,
-            level + 1,
-            output
-        );
-    }
-}
-
-
-#pragma mark - Menu
+#pragma mark -
+#pragma mark Menu
+#pragma mark -
 
 @implementation LikeeTweakMenu
-
 
 + (instancetype)sharedInstance
 {
@@ -233,7 +191,7 @@ static void LTBuildViewTree(UIView *view,
 }
 
 
-#pragma mark - Colors
+#pragma mark Colors
 
 - (UIColor *)purpleColor
 {
@@ -271,7 +229,9 @@ static void LTBuildViewTree(UIView *view,
 }
 
 
-#pragma mark - Install Button
+#pragma mark -
+#pragma mark Install button
+#pragma mark -
 
 - (void)installButton
 {
@@ -300,7 +260,9 @@ static void LTBuildViewTree(UIView *view,
 
                     if (candidate.isKeyWindow) {
 
-                        window = candidate;
+                        window =
+                            candidate;
+
                         break;
                     }
                 }
@@ -316,14 +278,13 @@ static void LTBuildViewTree(UIView *view,
 
         if (!window) {
 
-            NSLog(
-                @"[LikeeTweak] Window not found"
-            );
+            NSLog(@"[LikeeTweak] Window not found");
 
             return;
         }
 
-        self.window = window;
+        self.window =
+            window;
 
         UIButton *button =
             [UIButton buttonWithType:
@@ -341,8 +302,8 @@ static void LTBuildViewTree(UIView *view,
                 forState:UIControlStateNormal];
 
         [button setTitleColor:
-            [UIColor whiteColor]
-            forState:UIControlStateNormal];
+                    [UIColor whiteColor]
+                    forState:UIControlStateNormal];
 
         button.titleLabel.font =
             [UIFont boldSystemFontOfSize:16.0];
@@ -351,9 +312,14 @@ static void LTBuildViewTree(UIView *view,
             [[self purpleColor]
                 colorWithAlphaComponent:0.88];
 
-        button.layer.cornerRadius = 25.0;
-        button.layer.masksToBounds = YES;
-        button.layer.borderWidth = 1.0;
+        button.layer.cornerRadius =
+            25.0;
+
+        button.layer.masksToBounds =
+            YES;
+
+        button.layer.borderWidth =
+            1.0;
 
         button.layer.borderColor =
             [[self lightPurpleColor]
@@ -361,7 +327,8 @@ static void LTBuildViewTree(UIView *view,
 
         [button addTarget:self
                    action:@selector(buttonTapped:)
-         forControlEvents:UIControlEventTouchUpInside];
+         forControlEvents:
+             UIControlEventTouchUpInside];
 
         UIPanGestureRecognizer *pan =
             [[UIPanGestureRecognizer alloc]
@@ -372,20 +339,21 @@ static void LTBuildViewTree(UIView *view,
 
         [window addSubview:button];
 
-        self.button = button;
+        self.button =
+            button;
 
-        NSLog(
-            @"[LikeeTweak] LT button installed"
-        );
+        NSLog(@"[LikeeTweak] Button installed");
     });
 }
 
 
-#pragma mark - Button Drag
+#pragma mark Button drag
 
-- (void)buttonDragged:(UIPanGestureRecognizer *)gesture
+- (void)buttonDragged:
+    (UIPanGestureRecognizer *)gesture
 {
-    UIView *button = gesture.view;
+    UIView *button =
+        gesture.view;
 
     CGPoint translation =
         [gesture translationInView:
@@ -403,9 +371,10 @@ static void LTBuildViewTree(UIView *view,
 }
 
 
-#pragma mark - Button Tap
+#pragma mark Button tap
 
-- (void)buttonTapped:(UIButton *)sender
+- (void)buttonTapped:
+    (UIButton *)sender
 {
     if (self.menuView)
         [self hideMenu];
@@ -414,7 +383,9 @@ static void LTBuildViewTree(UIView *view,
 }
 
 
-#pragma mark - Menu
+#pragma mark -
+#pragma mark Menu
+#pragma mark -
 
 - (void)showMenu
 {
@@ -422,8 +393,11 @@ static void LTBuildViewTree(UIView *view,
         !self.window)
         return;
 
-    CGFloat width = 275.0;
-    CGFloat height = 390.0;
+    CGFloat width =
+        275.0;
+
+    CGFloat height =
+        390.0;
 
     CGFloat x =
         self.window.bounds.size.width
@@ -446,10 +420,10 @@ static void LTBuildViewTree(UIView *view,
             - 20.0;
     }
 
-
     UIView *overlay =
         [[UIView alloc]
-            initWithFrame:self.window.bounds];
+            initWithFrame:
+                self.window.bounds];
 
     overlay.backgroundColor =
         [UIColor clearColor];
@@ -459,12 +433,14 @@ static void LTBuildViewTree(UIView *view,
             initWithTarget:self
                     action:@selector(hideMenu)];
 
-    [overlay addGestureRecognizer:overlayTap];
+    [overlay addGestureRecognizer:
+        overlayTap];
 
-    [self.window addSubview:overlay];
+    [self.window addSubview:
+        overlay];
 
-    self.overlay = overlay;
-
+    self.overlay =
+        overlay;
 
     UIView *menu =
         [[UIView alloc]
@@ -479,18 +455,24 @@ static void LTBuildViewTree(UIView *view,
     menu.backgroundColor =
         [self darkPurpleColor];
 
-    menu.layer.cornerRadius = 24.0;
-    menu.layer.masksToBounds = YES;
-    menu.layer.borderWidth = 1.0;
+    menu.layer.cornerRadius =
+        24.0;
+
+    menu.layer.masksToBounds =
+        YES;
+
+    menu.layer.borderWidth =
+        1.0;
 
     menu.layer.borderColor =
         [[self purpleColor]
             colorWithAlphaComponent:0.75].CGColor;
 
-    [self.window addSubview:menu];
+    [self.window addSubview:
+        menu];
 
-    self.menuView = menu;
-
+    self.menuView =
+        menu;
 
     UIView *header =
         [[UIView alloc]
@@ -506,18 +488,19 @@ static void LTBuildViewTree(UIView *view,
         [[self purpleColor]
             colorWithAlphaComponent:0.18];
 
-    [menu addSubview:header];
+    [menu addSubview:
+        header];
 
-    self.menuHeader = header;
-
+    self.menuHeader =
+        header;
 
     UIPanGestureRecognizer *menuPan =
         [[UIPanGestureRecognizer alloc]
             initWithTarget:self
                     action:@selector(menuDragged:)];
 
-    [header addGestureRecognizer:menuPan];
-
+    [header addGestureRecognizer:
+        menuPan];
 
     UILabel *title =
         [[UILabel alloc]
@@ -529,14 +512,17 @@ static void LTBuildViewTree(UIView *view,
                     32
                 )];
 
-    title.text = @"LikeeTweak";
-    title.textColor = [UIColor whiteColor];
+    title.text =
+        @"LikeeTweak";
+
+    title.textColor =
+        [UIColor whiteColor];
 
     title.font =
         [UIFont boldSystemFontOfSize:21];
 
-    [header addSubview:title];
-
+    [header addSubview:
+        title];
 
     UILabel *subtitle =
         [[UILabel alloc]
@@ -558,8 +544,8 @@ static void LTBuildViewTree(UIView *view,
     subtitle.font =
         [UIFont systemFontOfSize:12];
 
-    [header addSubview:subtitle];
-
+    [header addSubview:
+        subtitle];
 
     UIButton *closeButton =
         [UIButton buttonWithType:
@@ -574,28 +560,33 @@ static void LTBuildViewTree(UIView *view,
         );
 
     [closeButton setTitle:@"×"
-                 forState:UIControlStateNormal];
+                 forState:
+                     UIControlStateNormal];
 
     [closeButton setTitleColor:
-        [UIColor whiteColor]
-        forState:UIControlStateNormal];
+                    [UIColor whiteColor]
+                  forState:
+                    UIControlStateNormal];
 
     closeButton.titleLabel.font =
         [UIFont systemFontOfSize:28
-                          weight:UIFontWeightLight];
+                          weight:
+                            UIFontWeightLight];
 
     closeButton.backgroundColor =
         [[UIColor whiteColor]
             colorWithAlphaComponent:0.08];
 
-    closeButton.layer.cornerRadius = 18;
+    closeButton.layer.cornerRadius =
+        18;
 
     [closeButton addTarget:self
                     action:@selector(closeButtonTapped:)
-          forControlEvents:UIControlEventTouchUpInside];
+          forControlEvents:
+              UIControlEventTouchUpInside];
 
-    [header addSubview:closeButton];
-
+    [header addSubview:
+        closeButton];
 
     UIView *line =
         [[UIView alloc]
@@ -611,8 +602,8 @@ static void LTBuildViewTree(UIView *view,
         [[self purpleColor]
             colorWithAlphaComponent:0.45];
 
-    [menu addSubview:line];
-
+    [menu addSubview:
+        line];
 
     UIScrollView *scroll =
         [[UIScrollView alloc]
@@ -627,12 +618,14 @@ static void LTBuildViewTree(UIView *view,
     scroll.backgroundColor =
         [UIColor clearColor];
 
-    scroll.showsVerticalScrollIndicator = YES;
+    scroll.showsVerticalScrollIndicator =
+        YES;
 
-    [menu addSubview:scroll];
+    [menu addSubview:
+        scroll];
 
-    self.scrollView = scroll;
-
+    self.scrollView =
+        scroll;
 
     UILabel *section =
         [[UILabel alloc]
@@ -654,8 +647,8 @@ static void LTBuildViewTree(UIView *view,
     section.font =
         [UIFont boldSystemFontOfSize:11];
 
-    [scroll addSubview:section];
-
+    [scroll addSubview:
+        section];
 
     [self addSwitchItem:
         @"Убирать рекламу из рекомендаций"
@@ -664,7 +657,6 @@ static void LTBuildViewTree(UIView *view,
         y:38
         menu:scroll];
 
-
     UILabel *warning =
         [[UILabel alloc]
             initWithFrame:
@@ -672,14 +664,15 @@ static void LTBuildViewTree(UIView *view,
                     20,
                     92,
                     width - 40,
-                    58
+                    65
                 )];
 
     warning.text =
-        @"Диагностический режим.\n"
-         "Сейчас лучше оставить фильтр OFF.";
+        @"Удаляется целая рекламная ячейка,\n"
+         "а не отдельные элементы рекламы.";
 
-    warning.numberOfLines = 2;
+    warning.numberOfLines =
+        2;
 
     warning.textColor =
         [[UIColor whiteColor]
@@ -688,15 +681,15 @@ static void LTBuildViewTree(UIView *view,
     warning.font =
         [UIFont systemFontOfSize:11];
 
-    [scroll addSubview:warning];
-
+    [scroll addSubview:
+        warning];
 
     UILabel *section2 =
         [[UILabel alloc]
             initWithFrame:
                 CGRectMake(
                     20,
-                    170,
+                    175,
                     width - 40,
                     22
                 )];
@@ -711,75 +704,31 @@ static void LTBuildViewTree(UIView *view,
     section2.font =
         [UIFont boldSystemFontOfSize:11];
 
-    [scroll addSubview:section2];
-
+    [scroll addSubview:
+        section2];
 
     [self addSwitchItem:
         @"Компактный интерфейс"
         icon:@"◆"
         key:@"LikeeTweakCompact"
-        y:196
+        y:201
         menu:scroll];
-
 
     [self addSwitchItem:
         @"Скрыть лишние элементы"
         icon:@"◈"
         key:@"LikeeTweakHideUI"
-        y:244
+        y:249
         menu:scroll];
-
-
-    UIButton *debugButton =
-        [UIButton buttonWithType:
-            UIButtonTypeSystem];
-
-    debugButton.frame =
-        CGRectMake(
-            15,
-            292,
-            width - 30,
-            42
-        );
-
-    [debugButton setTitle:
-        @"🔍  DEBUG TREE"
-        forState:UIControlStateNormal];
-
-    [debugButton setTitleColor:
-        [UIColor whiteColor]
-        forState:UIControlStateNormal];
-
-    debugButton.titleLabel.font =
-        [UIFont boldSystemFontOfSize:13];
-
-    debugButton.backgroundColor =
-        [[self purpleColor]
-            colorWithAlphaComponent:0.75];
-
-    debugButton.layer.cornerRadius = 11;
-
-    debugButton.layer.borderWidth = 1;
-
-    debugButton.layer.borderColor =
-        [[self lightPurpleColor]
-            colorWithAlphaComponent:0.45].CGColor;
-
-    [debugButton addTarget:self
-                    action:@selector(showDebugTree)
-          forControlEvents:UIControlEventTouchUpInside];
-
-    [scroll addSubview:debugButton];
-
 
     scroll.contentSize =
         CGSizeMake(
             width,
-            350
+            315
         );
 
-
-    menu.alpha = 0;
+    menu.alpha =
+        0.0;
 
     menu.transform =
         CGAffineTransformMakeScale(
@@ -790,7 +739,8 @@ static void LTBuildViewTree(UIView *view,
     [UIView animateWithDuration:0.18
                      animations:^{
 
-        menu.alpha = 1;
+        menu.alpha =
+            1.0;
 
         menu.transform =
             CGAffineTransformIdentity;
@@ -798,7 +748,7 @@ static void LTBuildViewTree(UIView *view,
 }
 
 
-#pragma mark - Switch
+#pragma mark Switch item
 
 - (void)addSwitchItem:(NSString *)title
                  icon:(NSString *)icon
@@ -819,10 +769,11 @@ static void LTBuildViewTree(UIView *view,
     container.backgroundColor =
         [self itemColor];
 
-    container.layer.cornerRadius = 11;
+    container.layer.cornerRadius =
+        11;
 
-    [menu addSubview:container];
-
+    [menu addSubview:
+        container];
 
     UILabel *iconLabel =
         [[UILabel alloc]
@@ -834,15 +785,17 @@ static void LTBuildViewTree(UIView *view,
                     30
                 )];
 
-    iconLabel.text = icon;
+    iconLabel.text =
+        icon;
+
     iconLabel.textColor =
         [self lightPurpleColor];
 
     iconLabel.font =
         [UIFont systemFontOfSize:16];
 
-    [container addSubview:iconLabel];
-
+    [container addSubview:
+        iconLabel];
 
     UILabel *label =
         [[UILabel alloc]
@@ -854,15 +807,17 @@ static void LTBuildViewTree(UIView *view,
                     40
                 )];
 
-    label.text = title;
+    label.text =
+        title;
+
     label.textColor =
         [UIColor whiteColor];
 
     label.font =
         [UIFont systemFontOfSize:13];
 
-    [container addSubview:label];
-
+    [container addSubview:
+        label];
 
     UISwitch *toggle =
         [[UISwitch alloc]
@@ -893,13 +848,17 @@ static void LTBuildViewTree(UIView *view,
     [toggle addTarget:self
                action:@selector(switchChanged:)
      forControlEvents:
-        UIControlEventValueChanged];
+         UIControlEventValueChanged];
 
-    [container addSubview:toggle];
+    [container addSubview:
+        toggle];
 }
 
 
-- (void)switchChanged:(UISwitch *)sender
+#pragma mark Switch changed
+
+- (void)switchChanged:
+    (UISwitch *)sender
 {
     NSString *key =
         sender.accessibilityIdentifier;
@@ -910,7 +869,6 @@ static void LTBuildViewTree(UIView *view,
     [[NSUserDefaults standardUserDefaults]
         setBool:enabled
         forKey:key];
-
 
     if ([key isEqualToString:
             @"LikeeTweakAggressive"]) {
@@ -923,7 +881,6 @@ static void LTBuildViewTree(UIView *view,
         if (enabled) {
 
             [self startAdObserver];
-
             [self scanForAds];
 
         } else {
@@ -934,21 +891,52 @@ static void LTBuildViewTree(UIView *view,
 }
 
 
-#pragma mark - Advertisement Scan
+#pragma mark -
+#pragma mark Advertisement scan
+#pragma mark -
 
 - (void)scanForAds
 {
-    if (![[NSUserDefaults standardUserDefaults]
-            boolForKey:@"LikeeTweakAggressive"])
+    if (!LTAdFilterEnabled())
         return;
 
+    dispatch_async(dispatch_get_main_queue(), ^{
 
-    dispatch_async(
-        dispatch_get_main_queue(),
-        ^{
+        NSMutableArray *windows =
+            [NSMutableArray array];
 
-        for (UIWindow *window in
-             UIApplication.sharedApplication.windows) {
+        if (@available(iOS 13.0, *)) {
+
+            for (UIScene *scene in
+                 UIApplication.sharedApplication.connectedScenes) {
+
+                if (scene.activationState !=
+                    UISceneActivationStateForegroundActive)
+                    continue;
+
+                if (![scene isKindOfClass:
+                        [UIWindowScene class]])
+                    continue;
+
+                for (UIWindow *window in
+                     ((UIWindowScene *)scene).windows) {
+
+                    if (![windows containsObject:window])
+                        [windows addObject:window];
+                }
+            }
+        }
+
+        if (windows.count == 0) {
+
+            UIWindow *window =
+                UIApplication.sharedApplication.keyWindow;
+
+            if (window)
+                [windows addObject:window];
+        }
+
+        for (UIWindow *window in windows) {
 
             [self scanView:window];
         }
@@ -961,14 +949,28 @@ static void LTBuildViewTree(UIView *view,
     if (!view)
         return;
 
+    /*
+     * ВАЖНО:
+     *
+     * Ищем только целую рекламную ячейку.
+     *
+     * Не трогаем:
+     * BGNativeAdView
+     * BGAdMediaView
+     * BGServerMediaView
+     * BGServerAdVideoPlayView
+     *
+     * Поэтому не должно оставаться
+     * чёрного видеоблока от частично
+     * удалённой рекламы.
+     */
 
-    if (LTIsAdClass(view)) {
+    if (LTIsCompleteAdCell(view)) {
 
-        LTRemoveAdViewImmediately(view);
+        LTRemoveCompleteAdCell(view);
 
         return;
     }
-
 
     NSArray *subviews =
         [view.subviews copy];
@@ -980,105 +982,113 @@ static void LTBuildViewTree(UIView *view,
 }
 
 
-#pragma mark - Observer
+#pragma mark -
+#pragma mark Observer
+#pragma mark -
 
 - (void)startAdObserver
 {
     [self stopAdObserver];
 
-
-    [[NSNotificationCenter defaultCenter]
-        addObserver:self
-           selector:@selector(scanForAds)
-               name:UIApplicationDidBecomeActiveNotification
-             object:nil];
-
+    /*
+     * Первоначальная проверка.
+     */
 
     [self performSelector:
         @selector(scanForAds)
         withObject:nil
-        afterDelay:0.15];
+        afterDelay:0.05];
 
+    /*
+     * Небольшой повторный поиск нужен,
+     * потому что Likee может создать
+     * рекламную ячейку после появления
+     * самой рекомендации.
+     */
 
-    NSLog(
-        @"[LikeeTweak] Advertisement observer started"
-    );
+    [self performSelector:
+        @selector(scanForAds)
+        withObject:nil
+        afterDelay:0.20];
+
+    [self performSelector:
+        @selector(scanForAds)
+        withObject:nil
+        afterDelay:0.50];
+
+    [self performSelector:
+        @selector(scanForAds)
+        withObject:nil
+        afterDelay:1.0];
+
+    NSLog(@"[LikeeTweak] Advertisement observer started");
 }
 
 
 - (void)stopAdObserver
 {
-    [[NSNotificationCenter defaultCenter]
-        removeObserver:self
-                  name:UIApplicationDidBecomeActiveNotification
-                object:nil];
-
-
     [NSObject
         cancelPreviousPerformRequestsWithTarget:self
-                                       selector:@selector(scanForAds)
+                                       selector:
+                                         @selector(scanForAds)
                                          object:nil];
 
-
-    NSLog(
-        @"[LikeeTweak] Advertisement observer stopped"
-    );
+    NSLog(@"[LikeeTweak] Advertisement observer stopped");
 }
 
 
-#pragma mark - Menu Drag
+#pragma mark -
+#pragma mark Menu drag
+#pragma mark -
 
-- (void)menuDragged:(UIPanGestureRecognizer *)gesture
+- (void)menuDragged:
+    (UIPanGestureRecognizer *)gesture
 {
     if (!self.menuView ||
         !self.window)
         return;
 
-
     CGPoint translation =
-        [gesture translationInView:self.window];
-
+        [gesture translationInView:
+            self.window];
 
     CGPoint center =
         self.menuView.center;
 
-    center.x += translation.x;
-    center.y += translation.y;
+    center.x +=
+        translation.x;
 
+    center.y +=
+        translation.y;
 
     CGFloat halfWidth =
-        self.menuView.bounds.size.width / 2.0;
+        self.menuView.bounds.size.width / 2;
 
     CGFloat halfHeight =
-        self.menuView.bounds.size.height / 2.0;
-
+        self.menuView.bounds.size.height / 2;
 
     center.x =
         MAX(
-            halfWidth + 5.0,
+            halfWidth + 5,
             MIN(
                 center.x,
                 self.window.bounds.size.width
-                - halfWidth
-                - 5.0
+                - halfWidth - 5
             )
         );
-
 
     center.y =
         MAX(
-            halfHeight + 5.0,
+            halfHeight + 5,
             MIN(
                 center.y,
                 self.window.bounds.size.height
-                - halfHeight
-                - 5.0
+                - halfHeight - 5
             )
         );
 
-
-    self.menuView.center = center;
-
+    self.menuView.center =
+        center;
 
     [gesture setTranslation:
         CGPointZero
@@ -1086,9 +1096,10 @@ static void LTBuildViewTree(UIView *view,
 }
 
 
-#pragma mark - Close
+#pragma mark Close
 
-- (void)closeButtonTapped:(UIButton *)sender
+- (void)closeButtonTapped:
+    (UIButton *)sender
 {
     [self hideMenu];
 }
@@ -1102,11 +1113,11 @@ static void LTBuildViewTree(UIView *view,
     if (!menu)
         return;
 
-
     [UIView animateWithDuration:0.15
                      animations:^{
 
-        menu.alpha = 0;
+        menu.alpha =
+            0.0;
 
         menu.transform =
             CGAffineTransformMakeScale(
@@ -1121,464 +1132,82 @@ static void LTBuildViewTree(UIView *view,
 
         [self.overlay removeFromSuperview];
 
-        self.menuView = nil;
-        self.menuHeader = nil;
-        self.overlay = nil;
-        self.scrollView = nil;
+        self.menuView =
+            nil;
+
+        self.menuHeader =
+            nil;
+
+        self.overlay =
+            nil;
+
+        self.scrollView =
+            nil;
     }];
-}
-
-
-#pragma mark - DEBUG TREE
-
-- (UIView *)findRecommendationTable
-{
-    NSMutableArray *queue =
-        [NSMutableArray array];
-
-
-    for (UIWindow *window in
-         UIApplication.sharedApplication.windows) {
-
-        if (window)
-            [queue addObject:window];
-    }
-
-
-    while (queue.count > 0) {
-
-        UIView *view =
-            queue.firstObject;
-
-        [queue removeObjectAtIndex:0];
-
-
-        NSString *className =
-            NSStringFromClass([view class]);
-
-
-        if ([className
-             isEqualToString:
-                @"BVNewVideoDetailTableView"]) {
-
-            return view;
-        }
-
-
-        NSArray *children =
-            [view.subviews copy];
-
-        for (UIView *child in children) {
-
-            [queue addObject:child];
-        }
-    }
-
-
-    return nil;
-}
-
-
-- (void)showDebugTree
-{
-    if (!self.window)
-        return;
-
-
-    [self hideMenu];
-
-
-    dispatch_async(
-        dispatch_get_main_queue(),
-        ^{
-
-        UIView *old =
-            [self.window viewWithTag:445566];
-
-        if (old)
-            [old removeFromSuperview];
-
-
-        UIView *debugOverlay =
-            [[UIView alloc]
-                initWithFrame:
-                    self.window.bounds];
-
-        debugOverlay.tag = 445566;
-
-        debugOverlay.backgroundColor =
-            [[UIColor blackColor]
-                colorWithAlphaComponent:0.95];
-
-
-        [self.window addSubview:debugOverlay];
-
-
-        UILabel *title =
-            [[UILabel alloc]
-                initWithFrame:
-                    CGRectMake(
-                        15,
-                        32,
-                        330,
-                        40
-                    )];
-
-        title.text =
-            @"LikeeTweak DEBUG";
-
-        title.textColor =
-            [UIColor whiteColor];
-
-        title.font =
-            [UIFont boldSystemFontOfSize:20];
-
-        [debugOverlay addSubview:title];
-
-
-        UIButton *close =
-            [UIButton buttonWithType:
-                UIButtonTypeSystem];
-
-        close.frame =
-            CGRectMake(
-                debugOverlay.bounds.size.width - 58,
-                27,
-                45,
-                45
-            );
-
-        [close setTitle:@"×"
-                forState:UIControlStateNormal];
-
-        [close setTitleColor:
-            [UIColor whiteColor]
-            forState:UIControlStateNormal];
-
-        close.titleLabel.font =
-            [UIFont systemFontOfSize:30];
-
-
-        [close addTarget:self
-                  action:@selector(closeDebugTree:)
-        forControlEvents:
-              UIControlEventTouchUpInside];
-
-
-        [debugOverlay addSubview:close];
-
-
-        UIButton *refresh =
-            [UIButton buttonWithType:
-                UIButtonTypeSystem];
-
-        refresh.frame =
-            CGRectMake(
-                15,
-                82,
-                debugOverlay.bounds.size.width - 30,
-                44
-            );
-
-        [refresh setTitle:
-            @"↻  ОБНОВИТЬ ДЕРЕВО"
-            forState:UIControlStateNormal];
-
-        [refresh setTitleColor:
-            [UIColor whiteColor]
-            forState:UIControlStateNormal];
-
-        refresh.backgroundColor =
-            [[self purpleColor]
-                colorWithAlphaComponent:0.85];
-
-        refresh.layer.cornerRadius = 11;
-
-
-        [refresh addTarget:self
-                    action:@selector(refreshDebugTree:)
-          forControlEvents:
-              UIControlEventTouchUpInside];
-
-
-        [debugOverlay addSubview:refresh];
-
-
-        UITextView *text =
-            [[UITextView alloc]
-                initWithFrame:
-                    CGRectMake(
-                        10,
-                        138,
-                        debugOverlay.bounds.size.width - 20,
-                        debugOverlay.bounds.size.height - 148
-                    )];
-
-        text.tag = 445567;
-
-        text.backgroundColor =
-            [[UIColor blackColor]
-                colorWithAlphaComponent:0.65];
-
-        text.textColor =
-            [UIColor whiteColor];
-
-        text.font =
-            [UIFont systemFontOfSize:11];
-
-        text.editable = NO;
-        text.selectable = YES;
-
-        text.alwaysBounceVertical = YES;
-
-        text.layer.cornerRadius = 8;
-
-        [debugOverlay addSubview:text];
-
-
-        [self updateDebugTreeText];
-    });
-}
-
-
-- (void)updateDebugTreeText
-{
-    UIView *debugOverlay =
-        [self.window viewWithTag:445566];
-
-    if (!debugOverlay)
-        return;
-
-
-    UITextView *text =
-        (UITextView *)
-        [debugOverlay viewWithTag:445567];
-
-    if (!text)
-        return;
-
-
-    UIView *table =
-        [self findRecommendationTable];
-
-
-    if (!table) {
-
-        text.text =
-            @"BVNewVideoDetailTableView НЕ НАЙДЕН.\n\n"
-             "Открой рекомендации.\n"
-             "После появления видео нажми\n"
-             "«ОБНОВИТЬ ДЕРЕВО».";
-
-        return;
-    }
-
-
-    NSMutableString *result =
-        [NSMutableString string];
-
-
-    [result appendString:
-        @"=== RECOMMENDATION TREE ===\n\n"];
-
-
-    LTBuildViewTree(
-        table,
-        0,
-        result
-    );
-
-
-    text.text = result;
-
-
-    [text setContentOffset:
-        CGPointZero
-        animated:NO];
-}
-
-
-- (void)refreshDebugTree:(UIButton *)sender
-{
-    [self updateDebugTreeText];
-}
-
-
-- (void)closeDebugTree:(UIButton *)sender
-{
-    UIView *debugOverlay =
-        [self.window viewWithTag:445566];
-
-    [debugOverlay removeFromSuperview];
 }
 
 @end
 
 
-#pragma mark - Event-driven advertisement hooks
+#pragma mark -
+#pragma mark Complete advertisement cell hook
+#pragma mark -
 
-%hook BGAdMediaView
+%hook BVVideoNativeAdTableViewCell
+
+- (void)didMoveToWindow
+{
+    %orig;
+
+    if (!LTAdFilterEnabled())
+        return;
+
+    NSLog(@"[LikeeTweak] BVVideoNativeAdTableViewCell APPEARED");
+
+    dispatch_async(dispatch_get_main_queue(), ^{
+
+        if (!LTAdFilterEnabled())
+            return;
+
+        UIView *cell =
+            (UIView *)self;
+
+        LTRemoveCompleteAdCell(cell);
+    });
+}
+
 
 - (void)didMoveToSuperview
 {
     %orig;
 
-    if ([[NSUserDefaults standardUserDefaults]
-            boolForKey:@"LikeeTweakAggressive"]) {
+    if (!LTAdFilterEnabled())
+        return;
 
-        NSLog(
-            @"[LikeeTweak] BGAdMediaView inserted"
-        );
+    NSLog(@"[LikeeTweak] BVVideoNativeAdTableViewCell ADDED");
 
-        LTRemoveAdViewImmediately(
-            (UIView *)self
-        );
-    }
+    dispatch_async(dispatch_get_main_queue(), ^{
+
+        if (!LTAdFilterEnabled())
+            return;
+
+        UIView *cell =
+            (UIView *)self;
+
+        LTRemoveCompleteAdCell(cell);
+    });
 }
 
 %end
 
 
-%hook BGAdComponentView
-
-- (void)didMoveToSuperview
-{
-    %orig;
-
-    if ([[NSUserDefaults standardUserDefaults]
-            boolForKey:@"LikeeTweakAggressive"]) {
-
-        NSLog(
-            @"[LikeeTweak] BGAdComponentView inserted"
-        );
-
-        LTRemoveAdViewImmediately(
-            (UIView *)self
-        );
-    }
-}
-
-%end
-
-
-%hook BGServerMediaView
-
-- (void)didMoveToSuperview
-{
-    %orig;
-
-    if ([[NSUserDefaults standardUserDefaults]
-            boolForKey:@"LikeeTweakAggressive"]) {
-
-        NSLog(
-            @"[LikeeTweak] BGServerMediaView inserted"
-        );
-
-        LTRemoveAdViewImmediately(
-            (UIView *)self
-        );
-    }
-}
-
-%end
-
-
-%hook BGNativeAdView
-
-- (void)didMoveToSuperview
-{
-    %orig;
-
-    if ([[NSUserDefaults standardUserDefaults]
-            boolForKey:@"LikeeTweakAggressive"]) {
-
-        NSLog(
-            @"[LikeeTweak] BGNativeAdView inserted"
-        );
-
-        LTRemoveAdViewImmediately(
-            (UIView *)self
-        );
-    }
-}
-
-%end
-
-
-%hook BVVideoDetailBigoAdStyle1ContainerView
-
-- (void)didMoveToSuperview
-{
-    %orig;
-
-    if ([[NSUserDefaults standardUserDefaults]
-            boolForKey:@"LikeeTweakAggressive"]) {
-
-        NSLog(
-            @"[LikeeTweak] BIGO ad container inserted"
-        );
-
-        LTRemoveAdViewImmediately(
-            (UIView *)self
-        );
-    }
-}
-
-%end
-
-
-%hook BGServerAdVideoPlayView
-
-- (void)didMoveToSuperview
-{
-    %orig;
-
-    if ([[NSUserDefaults standardUserDefaults]
-            boolForKey:@"LikeeTweakAggressive"]) {
-
-        NSLog(
-            @"[LikeeTweak] Ad video view inserted"
-        );
-
-        LTRemoveAdViewImmediately(
-            (UIView *)self
-        );
-    }
-}
-
-%end
-
-
-%hook BGServerAdImageView
-
-- (void)didMoveToSuperview
-{
-    %orig;
-
-    if ([[NSUserDefaults standardUserDefaults]
-            boolForKey:@"LikeeTweakAggressive"]) {
-
-        NSLog(
-            @"[LikeeTweak] Ad image view inserted"
-        );
-
-        LTRemoveAdViewImmediately(
-            (UIView *)self
-        );
-    }
-}
-
-%end
-
-
-#pragma mark - Constructor
+#pragma mark -
+#pragma mark Constructor
+#pragma mark -
 
 %ctor
 {
-    NSLog(
-        @"[LikeeTweak] Constructor"
-    );
-
+    NSLog(@"[LikeeTweak] Constructor");
 
     dispatch_after(
         dispatch_time(
@@ -1591,28 +1220,14 @@ static void LTBuildViewTree(UIView *view,
             LikeeTweakMenu *menu =
                 [LikeeTweakMenu sharedInstance];
 
-
             [menu installButton];
 
+            if (LTAdFilterEnabled()) {
 
-            /*
-             * ВАЖНО:
-             * если старое значение UserDefaults
-             * осталось ON, фильтр может включиться.
-             *
-             * Для диагностического этапа принудительно
-             * ставим OFF.
-             */
-            [[NSUserDefaults standardUserDefaults]
-                setBool:NO
-                forKey:@"LikeeTweakAggressive"];
+                [menu startAdObserver];
 
-
-            [menu stopAdObserver];
-
-            NSLog(
-                @"[LikeeTweak] Diagnostic mode: AD FILTER OFF"
-            );
+                [menu scanForAds];
+            }
         }
     );
 }
