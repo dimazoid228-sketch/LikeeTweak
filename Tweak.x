@@ -955,6 +955,56 @@ static void LTRemoveAdViewImmediately(UIView *view)
 
 #pragma mark - Constructor
 
+#pragma mark - Likee recommendation debug
+
+static void LTPrintViewTree(UIView *view, NSInteger level)
+{
+    if (!view)
+        return;
+
+    NSMutableString *indent = [NSMutableString string];
+
+    for (NSInteger i = 0; i < level; i++) {
+        [indent appendString:@"    "];
+    }
+
+    NSLog(@"[LikeeTweak][TREE] %@%@ frame=%@ hidden=%d alpha=%.2f",
+          indent,
+          NSStringFromClass([view class]),
+          NSStringFromCGRect(view.frame),
+          view.hidden,
+          view.alpha);
+
+    for (UIView *subview in [view.subviews copy]) {
+        LTPrintViewTree(subview, level + 1);
+    }
+}
+
+%hook BVNewVideoDetailTableView
+
+- (void)didMoveToWindow
+{
+    %orig;
+
+    NSLog(@"");
+    NSLog(@"==================================================");
+    NSLog(@"[LikeeTweak] BVNewVideoDetailTableView APPEARED");
+    NSLog(@"==================================================");
+
+    dispatch_async(dispatch_get_main_queue(), ^{
+
+        UIView *table = (UIView *)self;
+
+        LTPrintViewTree(table, 0);
+
+        NSLog(@"==================================================");
+        NSLog(@"[LikeeTweak] END TREE");
+        NSLog(@"==================================================");
+    });
+}
+
+%end
+
 %ctor
 {
     NSLog(@"[LikeeTweak] Constructor");
