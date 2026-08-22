@@ -915,44 +915,6 @@ static void LTRemoveAdViewImmediately(UIView *view)
 
 %end
 
-%hook LIKE.BVVideoDetailAdStyle1CardView
-
-- (void)didMoveToSuperview
-{
-    %orig;
-
-    if ([[NSUserDefaults standardUserDefaults]
-            boolForKey:@"LikeeTweakAggressive"]) {
-
-        NSLog(@"[LikeeTweak] Ad card inserted");
-
-        LTRemoveAdViewImmediately(
-            (UIView *)self
-        );
-    }
-}
-
-%end
-
-%hook LIKE.BVVideoDetailAdStyle1SmallCardView
-
-- (void)didMoveToSuperview
-{
-    %orig;
-
-    if ([[NSUserDefaults standardUserDefaults]
-            boolForKey:@"LikeeTweakAggressive"]) {
-
-        NSLog(@"[LikeeTweak] Small ad card inserted");
-
-        LTRemoveAdViewImmediately(
-            (UIView *)self
-        );
-    }
-}
-
-%end
-
 %hook BGServerAdVideoPlayView
 
 - (void)didMoveToSuperview
