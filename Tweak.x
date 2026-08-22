@@ -8,7 +8,6 @@
 @property (nonatomic, strong) UIView *overlay;
 @property (nonatomic, strong) UIScrollView *scrollView;
 @property (nonatomic, strong) UIWindow *window;
-
 @property (nonatomic, strong) NSTimer *adTimer;
 
 + (instancetype)sharedInstance;
@@ -51,122 +50,170 @@ static BOOL LTAdFilterEnabled(void)
 }
 
 
-static BOOL LTIsCompleteAdCell(UIView *view)
+static BOOL LTIsAdCell(UIView *view)
 {
     if (!view)
         return NO;
 
-    NSString *name =
+    NSString *className =
         NSStringFromClass([view class]);
 
-    return [name isEqualToString:
+    return [className isEqualToString:
                 @"BVVideoNativeAdTableViewCell"];
 }
 
 
-static void LTRemoveCompleteAdCell(UIView *view)
+/*
+ * ВАЖНО:
+ *
+ * Больше НИКАКОГО:
+ *
+ * [cell removeFromSuperview]
+ *
+ * Мы даём UITableView самому удалить строку.
+ */
+
+static void LTDeleteAdCell(UIView *view)
 {
     if (!view)
         return;
 
-    dispatch_async(dispatch_get_main_queue(), ^{
+    if (!LTAdFilterEnabled())
+        return;
 
-        if (!view)
-            return;
+    if (!LTIsAdCell(view))
+        return;
 
-        if (!view.superview)
-            return;
+    if (![view isKindOfClass:[UITableViewCell class]])
+        return;
 
-        /*
-         * Проверяем ещё раз непосредственно
-         * перед удалением.
-         */
+    UITableViewCell *cell =
+        (UITableViewCell *)view;
 
-        if (!LTAdFilterEnabled())
-            return;
+    UITableView *tableView = nil;
 
-        NSString *className =
-            NSStringFromClass([view class]);
+    UIView *parent =
+        cell.superview;
 
-        if (![className isEqualToString:
-                @"BVVideoNativeAdTableViewCell"]) {
-            return;
-        }
+    /*
+     * Ищем UITableView вверх по иерархии.
+     */
 
-        NSLog(@"[LikeeTweak] =============================");
-        NSLog(@"[LikeeTweak] COMPLETE AD CELL");
-        NSLog(@"[LikeeTweak] class = %@", className);
-        NSLog(@"[LikeeTweak] frame = %@",
-              NSStringFromCGRect(view.frame));
-        NSLog(@"[LikeeTweak] removing...");
-        NSLog(@"[LikeeTweak] =============================");
-
-        /*
-         * Сначала убираем содержимое.
-         */
-
-        view.hidden = YES;
-        view.alpha = 0.0;
-
-        /*
-         * Запоминаем superview.
-         */
-
-        UIView *parent =
-            view.superview;
-
-        /*
-         * Убираем ячейку из иерархии.
-         */
-
-        [view removeFromSuperview];
-
-        /*
-         * Просим родителя пересчитать layout.
-         */
-
-        [parent setNeedsLayout];
-        [parent layoutIfNeeded];
-
-        /*
-         * Если родитель — таблица,
-         * обновляем layout.
-         */
+    for (NSInteger i = 0;
+         parent != nil && i < 8;
+         i++) {
 
         if ([parent isKindOfClass:
                 [UITableView class]]) {
 
-            UITableView *table =
+            tableView =
                 (UITableView *)parent;
 
-            [table beginUpdates];
-            [table endUpdates];
-
-            [table setNeedsLayout];
-            [table layoutIfNeeded];
+            break;
         }
+
+        parent =
+            parent.superview;
+    }
+
+    if (!tableView) {
+
+        NSLog(@"[LikeeTweak] AD CELL: UITableView NOT FOUND");
+
+        return;
+    }
+
+    NSIndexPath *indexPath =
+        [tableView indexPathForCell:cell];
+
+    if (!indexPath) {
+
+        NSLog(@"[LikeeTweak] AD CELL: indexPath NOT FOUND");
+
+        return;
+    }
+
+    NSLog(@"[LikeeTweak] ============================");
+    NSLog(@"[LikeeTweak] AD CELL FOUND");
+    NSLog(@"[LikeeTweak] class = %@",
+          NSStringFromClass([cell class]));
+    NSLog(@"[LikeeTweak] indexPath = %@",
+          indexPath);
+    NSLog(@"[LikeeTweak] frame = %@",
+          NSStringFromCGRect(cell.frame));
+    NSLog(@"[LikeeTweak] deleting through UITableView");
+    NSLog(@"[LikeeTweak] ============================");
+
+
+    /*
+     * Скрываем сразу, чтобы реклама
+     * не успела отрисоваться.
+     */
+
+    cell.hidden = YES;
+    cell.alpha = 0.0;
+
+
+    /*
+     * Небольшая задержка.
+     *
+     * Это важно: didMoveToWindow вызывается
+     * во время изменения иерархии.
+     *
+     * Не пытаемся менять строки таблицы
+     * прямо внутри этого callback.
+     */
+
+    dispatch_async(dispatch_get_main_queue(), ^{
+
+        if (!LTAdFilterEnabled())
+            return;
+
+        if (!cell.superview)
+            return;
+
+        if (!tableView.superview &&
+            !tableView.window) {
+
+            NSLog(@"[LikeeTweak] UITableView is no longer active");
+            return;
+        }
+
+        NSIndexPath *currentIndexPath =
+            [tableView indexPathForCell:cell];
+
+        if (!currentIndexPath) {
+
+            NSLog(@"[LikeeTweak] Cell already gone");
+
+            return;
+        }
+
 
         /*
-         * Иногда Likee держит ячейку
-         * внутри дополнительной UIView.
-         * Поэтому просим layout у всей цепочки.
+         * Ещё раз убеждаемся,
+         * что это именно рекламная cell.
          */
 
-        UIView *current =
-            parent;
+        if (!LTIsAdCell(cell))
+            return;
 
-        for (NSInteger i = 0;
-             current && i < 5;
-             i++) {
 
-            [current setNeedsLayout];
-            [current layoutIfNeeded];
+        /*
+         * Штатное удаление строки UITableView.
+         */
 
-            current =
-                current.superview;
-        }
+        [tableView beginUpdates];
 
-        NSLog(@"[LikeeTweak] AD CELL REMOVED");
+        [tableView deleteRowsAtIndexPaths:
+                       @[currentIndexPath]
+                     withRowAnimation:
+                       UITableViewRowAnimationNone];
+
+        [tableView endUpdates];
+
+
+        NSLog(@"[LikeeTweak] AD ROW DELETED");
     });
 }
 
@@ -303,7 +350,7 @@ static void LTRemoveCompleteAdCell(UIView *view)
 
         [button setTitleColor:
                     [UIColor whiteColor]
-                    forState:UIControlStateNormal];
+                  forState:UIControlStateNormal];
 
         button.titleLabel.font =
             [UIFont boldSystemFontOfSize:16.0];
@@ -668,8 +715,8 @@ static void LTRemoveCompleteAdCell(UIView *view)
                 )];
 
     warning.text =
-        @"Удаляется целая рекламная ячейка,\n"
-         "а не отдельные элементы рекламы.";
+        @"Удаляется рекламная ячейка целиком.\n"
+         "Внутренние элементы рекламы не трогаются.";
 
     warning.numberOfLines =
         2;
@@ -950,27 +997,23 @@ static void LTRemoveCompleteAdCell(UIView *view)
         return;
 
     /*
-     * ВАЖНО:
-     *
-     * Ищем только целую рекламную ячейку.
-     *
-     * Не трогаем:
-     * BGNativeAdView
-     * BGAdMediaView
-     * BGServerMediaView
-     * BGServerAdVideoPlayView
-     *
-     * Поэтому не должно оставаться
-     * чёрного видеоблока от частично
-     * удалённой рекламы.
+     * ЕДИНСТВЕННЫЙ объект,
+     * который сейчас ищем.
      */
 
-    if (LTIsCompleteAdCell(view)) {
+    if (LTIsAdCell(view)) {
 
-        LTRemoveCompleteAdCell(view);
+        LTDeleteAdCell(view);
 
         return;
     }
+
+    /*
+     * Никаких BGAdMediaView,
+     * BGNativeAdView,
+     * BGServerMediaView,
+     * Moloco и т.д.
+     */
 
     NSArray *subviews =
         [view.subviews copy];
@@ -991,35 +1034,32 @@ static void LTRemoveCompleteAdCell(UIView *view)
     [self stopAdObserver];
 
     /*
-     * Первоначальная проверка.
+     * Первый поиск.
      */
 
     [self performSelector:
         @selector(scanForAds)
         withObject:nil
-        afterDelay:0.05];
+        afterDelay:0.10];
 
     /*
-     * Небольшой повторный поиск нужен,
-     * потому что Likee может создать
-     * рекламную ячейку после появления
-     * самой рекомендации.
+     * Второй — когда рекомендация
+     * уже успела создать cell.
      */
 
     [self performSelector:
         @selector(scanForAds)
         withObject:nil
-        afterDelay:0.20];
+        afterDelay:0.40];
+
+    /*
+     * Третий — дополнительная страховка.
+     */
 
     [self performSelector:
         @selector(scanForAds)
         withObject:nil
-        afterDelay:0.50];
-
-    [self performSelector:
-        @selector(scanForAds)
-        withObject:nil
-        afterDelay:1.0];
+        afterDelay:0.90];
 
     NSLog(@"[LikeeTweak] Advertisement observer started");
 }
@@ -1150,7 +1190,7 @@ static void LTRemoveCompleteAdCell(UIView *view)
 
 
 #pragma mark -
-#pragma mark Complete advertisement cell hook
+#pragma mark Advertisement cell hook
 #pragma mark -
 
 %hook BVVideoNativeAdTableViewCell
@@ -1162,17 +1202,14 @@ static void LTRemoveCompleteAdCell(UIView *view)
     if (!LTAdFilterEnabled())
         return;
 
-    NSLog(@"[LikeeTweak] BVVideoNativeAdTableViewCell APPEARED");
+    NSLog(@"[LikeeTweak] BVVideoNativeAdTableViewCell appeared");
 
     dispatch_async(dispatch_get_main_queue(), ^{
 
         if (!LTAdFilterEnabled())
             return;
 
-        UIView *cell =
-            (UIView *)self;
-
-        LTRemoveCompleteAdCell(cell);
+        LTDeleteAdCell((UIView *)self);
     });
 }
 
@@ -1184,17 +1221,14 @@ static void LTRemoveCompleteAdCell(UIView *view)
     if (!LTAdFilterEnabled())
         return;
 
-    NSLog(@"[LikeeTweak] BVVideoNativeAdTableViewCell ADDED");
+    NSLog(@"[LikeeTweak] BVVideoNativeAdTableViewCell added");
 
     dispatch_async(dispatch_get_main_queue(), ^{
 
         if (!LTAdFilterEnabled())
             return;
 
-        UIView *cell =
-            (UIView *)self;
-
-        LTRemoveCompleteAdCell(cell);
+        LTDeleteAdCell((UIView *)self);
     });
 }
 
