@@ -1,4 +1,5 @@
 #import <UIKit/UIKit.h>
+#import <objc/runtime.h>
 
 @interface LikeeTweakMenu : NSObject
 
@@ -8,6 +9,8 @@
 @property (nonatomic, strong) UIView *overlay;
 @property (nonatomic, strong) UIScrollView *scrollView;
 @property (nonatomic, strong) UIWindow *window;
+
+@property (nonatomic, strong) NSTimer *adTimer;
 
 + (instancetype)sharedInstance;
 
@@ -39,94 +42,58 @@
 
 
 #pragma mark -
-#pragma mark Advertisement helpers
+#pragma mark Advertisement
 #pragma mark -
 
 static BOOL LTAdFilterEnabled(void)
 {
     return [[NSUserDefaults standardUserDefaults]
-            boolForKey:@"LikeeTweakAggressive"];
+                boolForKey:@"LikeeTweakAggressive"];
 }
 
 
 /*
- * Проверяем именно рекламную ячейку.
+ * Проверяем, является ли объект именно
+ * BVVideoNativeAdTableViewCell.
  *
- * ВАЖНО:
- * Мы больше НЕ удаляем её через removeFromSuperview.
- *
- * Вместо этого передаём событие штатному
- * BVNewVideoDetailViewController.
+ * Саму ячейку больше НЕ удаляем.
  */
-
 static BOOL LTIsAdCell(UIView *view)
 {
     if (!view)
         return NO;
 
-    NSString *name =
+    NSString *className =
         NSStringFromClass([view class]);
 
-    return [name isEqualToString:
-            @"BVVideoNativeAdTableViewCell"];
+    return [className isEqualToString:
+                @"BVVideoNativeAdTableViewCell"];
 }
 
 
 /*
- * Ищем ближайший BVNewVideoDetailViewController.
+ * Ищем BVNewVideoDetailViewController
+ * вверх по responder chain.
+ *
+ * Важно:
+ * nextResponder возвращает UIResponder *,
+ * поэтому здесь нет проблемы с несовместимыми
+ * типами указателей.
  */
-
-static UIViewController *LTFindDetailViewController(UIView *view)
+static UIViewController *LTFindViewController(UIView *view)
 {
     if (!view)
         return nil;
 
-    UIViewController *vc =
-        (UIViewController *)[self nextResponder];
-
-    while (vc)
-    {
-        if ([NSStringFromClass([vc class])
-             isEqualToString:
-             @"BVNewVideoDetailViewController"])
-        {
-            return vc;
-        }
-
-        UIResponder *next =
-            [vc nextResponder];
-
-        if (![next isKindOfClass:
-                [UIViewController class]])
-        {
-            break;
-        }
-
-        vc =
-            (UIViewController *)next;
-    }
-
-    /*
-     * Дополнительный поиск по responder chain.
-     */
-
     UIResponder *responder =
         [view nextResponder];
 
-    while (responder)
-    {
-        if ([responder isKindOfClass:
-                [UIViewController class]])
-        {
-            UIViewController *candidate =
-                (UIViewController *)responder;
+    while (responder) {
 
-            if ([NSStringFromClass([candidate class])
-                 isEqualToString:
-                 @"BVNewVideoDetailViewController"])
-            {
-                return candidate;
-            }
+        if ([responder isKindOfClass:
+                [UIViewController class]]) {
+
+            return (UIViewController *)responder;
         }
 
         responder =
@@ -138,35 +105,30 @@ static UIViewController *LTFindDetailViewController(UIView *view)
 
 
 /*
- * Проверяем, что контроллер действительно
- * имеет нужный метод.
+ * Проверяем имя контроллера.
  */
-
-static BOOL LTControllerCanSkip(UIViewController *controller)
+static BOOL LTIsVideoDetailController(
+    UIViewController *controller)
 {
     if (!controller)
         return NO;
 
-    SEL selector =
-        NSSelectorFromString(
-            @"videoDetailAdTableViewCellDidTapSkip"
-        );
+    NSString *className =
+        NSStringFromClass([controller class]);
 
-    return [controller respondsToSelector:selector];
+    return [className isEqualToString:
+                @"BVNewVideoDetailViewController"];
 }
 
 
 /*
- * Главная функция.
+ * Вызываем найденный метод Likee:
  *
- * Мы НЕ трогаем view.
- * Мы НЕ удаляем cell.
- * Мы НЕ скрываем BGNativeAdView.
+ * videoDetailAdTableViewCellDidTapSkip
  *
- * Мы просим сам Likee выполнить штатный Skip.
+ * Саму UIView мы НЕ удаляем.
  */
-
-static void LTSkipAdCell(UIView *cell)
+static void LTSkipAdFromCell(UIView *cell)
 {
     if (!cell)
         return;
@@ -174,106 +136,71 @@ static void LTSkipAdCell(UIView *cell)
     if (!LTAdFilterEnabled())
         return;
 
-    if (!LTIsAdCell(cell))
-        return;
-
     dispatch_async(dispatch_get_main_queue(), ^{
 
         if (!LTAdFilterEnabled())
             return;
 
-        if (!cell)
+        if (!cell.superview)
+            return;
+
+        if (!LTIsAdCell(cell))
             return;
 
         UIViewController *controller =
-            LTFindDetailViewController(cell);
+            LTFindViewController(cell);
 
-        if (!controller)
-        {
-            NSLog(
-                @"[LikeeTweak] Ad cell found, "
-                 "but BVNewVideoDetailViewController "
-                 "was not found"
-            );
+        if (!controller) {
+
+            NSLog(@"[LikeeTweak] VideoDetail VC not found");
 
             return;
         }
 
-        if (!LTControllerCanSkip(controller))
-        {
-            NSLog(
-                @"[LikeeTweak] Controller does not "
-                 "respond to skip selector"
-            );
+        if (!LTIsVideoDetailController(controller)) {
+
+            NSLog(@"[LikeeTweak] Wrong controller: %@",
+                  NSStringFromClass([controller class]));
 
             return;
         }
-
-        NSLog(
-            @"[LikeeTweak] ==========================="
-        );
-
-        NSLog(
-            @"[LikeeTweak] AD CELL DETECTED"
-        );
-
-        NSLog(
-            @"[LikeeTweak] cell = %@",
-            NSStringFromClass([cell class])
-        );
-
-        NSLog(
-            @"[LikeeTweak] controller = %@",
-            NSStringFromClass([controller class])
-        );
-
-        NSLog(
-            @"[LikeeTweak] calling "
-             "videoDetailAdTableViewCellDidTapSkip"
-        );
 
         SEL selector =
             NSSelectorFromString(
                 @"videoDetailAdTableViewCellDidTapSkip"
             );
 
-        /*
-         * Метод без аргументов,
-         * поэтому вызываем через NSInvocation.
-         */
+        if (![controller respondsToSelector:selector]) {
 
-        NSMethodSignature *signature =
-            [controller methodSignatureForSelector:
-                selector];
-
-        if (!signature)
-        {
-            NSLog(
-                @"[LikeeTweak] No method signature"
-            );
+            NSLog(@"[LikeeTweak] Skip selector unavailable");
 
             return;
         }
 
-        NSInvocation *invocation =
-            [NSInvocation invocationWithMethodSignature:
-                signature];
+        NSLog(@"[LikeeTweak] =============================");
+        NSLog(@"[LikeeTweak] AD CELL DETECTED");
+        NSLog(@"[LikeeTweak] controller = %@",
+              NSStringFromClass([controller class]));
+        NSLog(@"[LikeeTweak] cell = %@",
+              NSStringFromClass([cell class]));
+        NSLog(@"[LikeeTweak] frame = %@",
+              NSStringFromCGRect(cell.frame));
+        NSLog(@"[LikeeTweak] CALLING SKIP");
+        NSLog(@"[LikeeTweak] =============================");
 
-        [invocation setTarget:
-            controller];
+        /*
+         * Метод не принимает аргументов
+         * и ничего не возвращает.
+         */
+        void (*sendMessage)(id, SEL) =
+            (void (*)(id, SEL))
+            [controller methodForSelector:selector];
 
-        [invocation setSelector:
-            selector];
+        if (sendMessage) {
+            sendMessage(controller, selector);
+        }
 
-        [invocation invoke];
-
-        NSLog(
-            @"[LikeeTweak] SKIP CALLED"
-        );
-
-        NSLog(
-            @"[LikeeTweak] ==========================="
-        );
+        NSLog(@"[LikeeTweak] AD SKIP CALLED");
     });
 }
 
@@ -349,11 +276,11 @@ static void LTSkipAdCell(UIView *cell)
 
         UIWindow *window = nil;
 
-        if (@available(iOS 13.0, *))
-        {
+        if (@available(iOS 13.0, *)) {
+
             for (UIScene *scene in
-                 UIApplication.sharedApplication.connectedScenes)
-            {
+                 UIApplication.sharedApplication.connectedScenes) {
+
                 if (scene.activationState !=
                     UISceneActivationStateForegroundActive)
                     continue;
@@ -363,12 +290,13 @@ static void LTSkipAdCell(UIView *cell)
                     continue;
 
                 for (UIWindow *candidate in
-                     ((UIWindowScene *)scene).windows)
-                {
-                    if (candidate.isKeyWindow)
-                    {
+                     ((UIWindowScene *)scene).windows) {
+
+                    if (candidate.isKeyWindow) {
+
                         window =
                             candidate;
+
                         break;
                     }
                 }
@@ -379,16 +307,12 @@ static void LTSkipAdCell(UIView *cell)
         }
 
         if (!window)
-        {
             window =
                 UIApplication.sharedApplication.keyWindow;
-        }
 
-        if (!window)
-        {
-            NSLog(
-                @"[LikeeTweak] Window not found"
-            );
+        if (!window) {
+
+            NSLog(@"[LikeeTweak] Window not found");
 
             return;
         }
@@ -408,15 +332,12 @@ static void LTSkipAdCell(UIView *cell)
                 50.0
             );
 
-        [button setTitle:
-            @"LT"
-            forState:
-                UIControlStateNormal];
+        [button setTitle:@"LT"
+                forState:UIControlStateNormal];
 
         [button setTitleColor:
-            [UIColor whiteColor]
-            forState:
-                UIControlStateNormal];
+                    [UIColor whiteColor]
+                    forState:UIControlStateNormal];
 
         button.titleLabel.font =
             [UIFont boldSystemFontOfSize:16.0];
@@ -438,32 +359,24 @@ static void LTSkipAdCell(UIView *cell)
             [[self lightPurpleColor]
                 colorWithAlphaComponent:0.55].CGColor;
 
-        [button addTarget:
-            self
-            action:
-                @selector(buttonTapped:)
-            forControlEvents:
-                UIControlEventTouchUpInside];
+        [button addTarget:self
+                   action:@selector(buttonTapped:)
+         forControlEvents:
+             UIControlEventTouchUpInside];
 
         UIPanGestureRecognizer *pan =
             [[UIPanGestureRecognizer alloc]
-                initWithTarget:
-                    self
-                action:
-                    @selector(buttonDragged:)];
+                initWithTarget:self
+                        action:@selector(buttonDragged:)];
 
-        [button addGestureRecognizer:
-            pan];
+        [button addGestureRecognizer:pan];
 
-        [window addSubview:
-            button];
+        [window addSubview:button];
 
         self.button =
             button;
 
-        NSLog(
-            @"[LikeeTweak] Button installed"
-        );
+        NSLog(@"[LikeeTweak] Button installed");
     });
 }
 
@@ -488,8 +401,7 @@ static void LTSkipAdCell(UIView *cell)
 
     [gesture setTranslation:
         CGPointZero
-        inView:
-            button.superview];
+        inView:button.superview];
 }
 
 
@@ -534,8 +446,8 @@ static void LTSkipAdCell(UIView *cell)
         y = 35.0;
 
     if (y + height >
-        self.window.bounds.size.height - 20.0)
-    {
+        self.window.bounds.size.height - 20.0) {
+
         y =
             self.window.bounds.size.height
             - height
@@ -552,10 +464,8 @@ static void LTSkipAdCell(UIView *cell)
 
     UITapGestureRecognizer *overlayTap =
         [[UITapGestureRecognizer alloc]
-            initWithTarget:
-                self
-            action:
-                @selector(hideMenu)];
+            initWithTarget:self
+                    action:@selector(hideMenu)];
 
     [overlay addGestureRecognizer:
         overlayTap];
@@ -620,10 +530,8 @@ static void LTSkipAdCell(UIView *cell)
 
     UIPanGestureRecognizer *menuPan =
         [[UIPanGestureRecognizer alloc]
-            initWithTarget:
-                self
-            action:
-                @selector(menuDragged:)];
+            initWithTarget:self
+                    action:@selector(menuDragged:)];
 
     [header addGestureRecognizer:
         menuPan];
@@ -685,20 +593,19 @@ static void LTSkipAdCell(UIView *cell)
             36
         );
 
-    [closeButton setTitle:
-        @"×"
-        forState:
-            UIControlStateNormal];
+    [closeButton setTitle:@"×"
+                 forState:
+                     UIControlStateNormal];
 
     [closeButton setTitleColor:
-        [UIColor whiteColor]
-        forState:
-            UIControlStateNormal];
+                    [UIColor whiteColor]
+                  forState:
+                    UIControlStateNormal];
 
     closeButton.titleLabel.font =
         [UIFont systemFontOfSize:28
-                           weight:
-                               UIFontWeightLight];
+                          weight:
+                            UIFontWeightLight];
 
     closeButton.backgroundColor =
         [[UIColor whiteColor]
@@ -707,12 +614,10 @@ static void LTSkipAdCell(UIView *cell)
     closeButton.layer.cornerRadius =
         18;
 
-    [closeButton addTarget:
-        self
-        action:
-            @selector(closeButtonTapped:)
-        forControlEvents:
-            UIControlEventTouchUpInside];
+    [closeButton addTarget:self
+                    action:@selector(closeButtonTapped:)
+          forControlEvents:
+              UIControlEventTouchUpInside];
 
     [header addSubview:
         closeButton];
@@ -797,8 +702,8 @@ static void LTSkipAdCell(UIView *cell)
                 )];
 
     warning.text =
-        @"Пропускается рекламная ячейка\n"
-         "через штатную функцию Likee.";
+        @"Пропуск выполняется через штатный\n"
+         "обработчик рекламной ячейки.";
 
     warning.numberOfLines =
         2;
@@ -974,12 +879,10 @@ static void LTSkipAdCell(UIView *cell)
     toggle.accessibilityIdentifier =
         key;
 
-    [toggle addTarget:
-        self
-        action:
-            @selector(switchChanged:)
-        forControlEvents:
-            UIControlEventValueChanged];
+    [toggle addTarget:self
+               action:@selector(switchChanged:)
+     forControlEvents:
+         UIControlEventValueChanged];
 
     [container addSubview:
         toggle];
@@ -1002,20 +905,20 @@ static void LTSkipAdCell(UIView *cell)
         forKey:key];
 
     if ([key isEqualToString:
-            @"LikeeTweakAggressive"])
-    {
+            @"LikeeTweakAggressive"]) {
+
         NSLog(
-            @"[LikeeTweak] Ad filter: %@",
+            @"[LikeeTweak] Ad skip: %@",
             enabled ? @"ON" : @"OFF"
         );
 
-        if (enabled)
-        {
+        if (enabled) {
+
             [self startAdObserver];
             [self scanForAds];
-        }
-        else
-        {
+
+        } else {
+
             [self stopAdObserver];
         }
     }
@@ -1036,11 +939,11 @@ static void LTSkipAdCell(UIView *cell)
         NSMutableArray *windows =
             [NSMutableArray array];
 
-        if (@available(iOS 13.0, *))
-        {
+        if (@available(iOS 13.0, *)) {
+
             for (UIScene *scene in
-                 UIApplication.sharedApplication.connectedScenes)
-            {
+                 UIApplication.sharedApplication.connectedScenes) {
+
                 if (scene.activationState !=
                     UISceneActivationStateForegroundActive)
                     continue;
@@ -1050,30 +953,25 @@ static void LTSkipAdCell(UIView *cell)
                     continue;
 
                 for (UIWindow *window in
-                     ((UIWindowScene *)scene).windows)
-                {
-                    if (![windows containsObject:
-                            window])
-                    {
-                        [windows addObject:
-                            window];
-                    }
+                     ((UIWindowScene *)scene).windows) {
+
+                    if (![windows containsObject:window])
+                        [windows addObject:window];
                 }
             }
         }
 
-        if (windows.count == 0)
-        {
+        if (windows.count == 0) {
+
             UIWindow *window =
                 UIApplication.sharedApplication.keyWindow;
 
             if (window)
-                [windows addObject:
-                    window];
+                [windows addObject:window];
         }
 
-        for (UIWindow *window in windows)
-        {
+        for (UIWindow *window in windows) {
+
             [self scanView:window];
         }
     });
@@ -1085,17 +983,32 @@ static void LTSkipAdCell(UIView *cell)
     if (!view)
         return;
 
-    if (LTIsAdCell(view))
-    {
-        LTSkipAdCell(view);
+    /*
+     * В новой версии НЕ удаляем рекламную cell.
+     *
+     * Когда находим:
+     *
+     * BVVideoNativeAdTableViewCell
+     *
+     * передаём её в штатный skip-handler.
+     */
+
+    if (LTIsAdCell(view)) {
+
+        LTSkipAdFromCell(view);
+
+        /*
+         * Не нужно заходить внутрь рекламного
+         * дерева после обнаружения cell.
+         */
         return;
     }
 
     NSArray *subviews =
         [view.subviews copy];
 
-    for (UIView *subview in subviews)
-    {
+    for (UIView *subview in subviews) {
+
         [self scanView:subview];
     }
 }
@@ -1110,9 +1023,8 @@ static void LTSkipAdCell(UIView *cell)
     [self stopAdObserver];
 
     /*
-     * Несколько проверок нужны потому,
-     * что рекламная cell может появиться
-     * асинхронно после загрузки рекомендаций.
+     * Реклама может появиться немного позже
+     * самой таблицы.
      */
 
     [self performSelector:
@@ -1123,12 +1035,7 @@ static void LTSkipAdCell(UIView *cell)
     [self performSelector:
         @selector(scanForAds)
         withObject:nil
-        afterDelay:0.15];
-
-    [self performSelector:
-        @selector(scanForAds)
-        withObject:nil
-        afterDelay:0.30];
+        afterDelay:0.20];
 
     [self performSelector:
         @selector(scanForAds)
@@ -1138,21 +1045,9 @@ static void LTSkipAdCell(UIView *cell)
     [self performSelector:
         @selector(scanForAds)
         withObject:nil
-        afterDelay:0.80];
+        afterDelay:1.0];
 
-    [self performSelector:
-        @selector(scanForAds)
-        withObject:nil
-        afterDelay:1.20];
-
-    [self performSelector:
-        @selector(scanForAds)
-        withObject:nil
-        afterDelay:2.0];
-
-    NSLog(
-        @"[LikeeTweak] Advertisement observer started"
-    );
+    NSLog(@"[LikeeTweak] Advertisement skip observer started");
 }
 
 
@@ -1162,11 +1057,9 @@ static void LTSkipAdCell(UIView *cell)
         cancelPreviousPerformRequestsWithTarget:self
                                        selector:
                                          @selector(scanForAds)
-                                       object:nil];
+                                         object:nil];
 
-    NSLog(
-        @"[LikeeTweak] Advertisement observer stopped"
-    );
+    NSLog(@"[LikeeTweak] Advertisement skip observer stopped");
 }
 
 
@@ -1225,8 +1118,7 @@ static void LTSkipAdCell(UIView *cell)
 
     [gesture setTranslation:
         CGPointZero
-        inView:
-            self.window];
+        inView:self.window];
 }
 
 
@@ -1289,7 +1181,6 @@ static void LTSkipAdCell(UIView *cell)
 
 %hook BVVideoNativeAdTableViewCell
 
-
 - (void)didMoveToWindow
 {
     %orig;
@@ -1297,23 +1188,12 @@ static void LTSkipAdCell(UIView *cell)
     if (!LTAdFilterEnabled())
         return;
 
-    NSLog(
-        @"[LikeeTweak] "
-         "BVVideoNativeAdTableViewCell APPEARED"
-    );
+    NSLog(@"[LikeeTweak] BVVideoNativeAdTableViewCell APPEARED");
 
-    /*
-     * Даём Likee закончить добавление
-     * ячейки в иерархию.
-     */
+    UIView *cell =
+        (UIView *)self;
 
-    dispatch_async(dispatch_get_main_queue(), ^{
-
-        if (!LTAdFilterEnabled())
-            return;
-
-        LTSkipAdCell((UIView *)self);
-    });
+    LTSkipAdFromCell(cell);
 }
 
 
@@ -1324,44 +1204,33 @@ static void LTSkipAdCell(UIView *cell)
     if (!LTAdFilterEnabled())
         return;
 
-    NSLog(
-        @"[LikeeTweak] "
-         "BVVideoNativeAdTableViewCell ADDED"
-    );
+    NSLog(@"[LikeeTweak] BVVideoNativeAdTableViewCell ADDED");
 
-    dispatch_async(dispatch_get_main_queue(), ^{
+    UIView *cell =
+        (UIView *)self;
 
-        if (!LTAdFilterEnabled())
-            return;
-
-        LTSkipAdCell((UIView *)self);
-    });
+    LTSkipAdFromCell(cell);
 }
 
 %end
 
 
 #pragma mark -
-#pragma mark Direct controller hook
+#pragma mark Video detail controller hook
 #pragma mark -
-
-/*
- * Дополнительная страховка.
- *
- * Мы НЕ меняем саму реализацию Skip.
- *
- * Просто логируем момент вызова,
- * чтобы видеть его в консоли.
- */
 
 %hook BVNewVideoDetailViewController
 
+/*
+ * Это реальный штатный метод Likee,
+ * который ты нашёл через FLEX.
+ *
+ * Здесь мы НЕ меняем его поведение.
+ * Просто логируем факт вызова.
+ */
 - (void)videoDetailAdTableViewCellDidTapSkip
 {
-    NSLog(
-        @"[LikeeTweak] "
-         "videoDetailAdTableViewCellDidTapSkip CALLED"
-    );
+    NSLog(@"[LikeeTweak] videoDetailAdTableViewCellDidTapSkip");
 
     %orig;
 }
@@ -1375,9 +1244,7 @@ static void LTSkipAdCell(UIView *cell)
 
 %ctor
 {
-    NSLog(
-        @"[LikeeTweak] Constructor"
-    );
+    NSLog(@"[LikeeTweak] Constructor");
 
     dispatch_after(
         dispatch_time(
@@ -1392,8 +1259,8 @@ static void LTSkipAdCell(UIView *cell)
 
             [menu installButton];
 
-            if (LTAdFilterEnabled())
-            {
+            if (LTAdFilterEnabled()) {
+
                 [menu startAdObserver];
 
                 [menu scanForAds];
