@@ -82,7 +82,7 @@ static UIViewController *LTFindDetailViewController(UIView *view)
         return nil;
 
     UIViewController *vc =
-        [view nextResponder];
+        (UIViewController *)[self nextResponder];
 
     while (vc)
     {
