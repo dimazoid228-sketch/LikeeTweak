@@ -1215,6 +1215,127 @@ static void LTSkipAdFromCell(UIView *cell)
 %end
 
 
+#pragma mark - Smart Advertisement Auto Skip
+
+%hook BVVideoNativeAdTableViewCell
+
+- (void)cellDidDisplay:(id)viewController
+{
+    %orig;
+
+    BOOL enabled =
+        [[NSUserDefaults standardUserDefaults]
+            boolForKey:@"LikeeTweakAdFilter"];
+
+    if (!enabled) {
+        return;
+    }
+
+    id adItem = nil;
+
+    @try {
+        if ([self respondsToSelector:@selector(adItem)]) {
+            adItem = [self adItem];
+        }
+    }
+    @catch (...) {
+        return;
+    }
+
+    if (adItem == nil) {
+        return;
+    }
+
+    BOOL isAd = NO;
+
+    @try {
+        if ([adItem respondsToSelector:@selector(isAdItem)]) {
+            isAd = [adItem isAdItem];
+        }
+    }
+    @catch (...) {
+        return;
+    }
+
+    if (!isAd) {
+        return;
+    }
+
+    NSLog(@"[LikeeTweak] SMART AD DETECTED");
+
+    __weak BVVideoNativeAdTableViewCell *weakCell = self;
+    __weak id weakAdItem = adItem;
+
+    dispatch_after(
+        dispatch_time(
+            DISPATCH_TIME_NOW,
+            (int64_t)(0.10 * NSEC_PER_SEC)
+        ),
+        dispatch_get_main_queue(),
+        ^{
+
+            BVVideoNativeAdTableViewCell *cell = weakCell;
+            id currentAdItem = weakAdItem;
+
+            if (cell == nil || currentAdItem == nil) {
+                return;
+            }
+
+            id currentItem = nil;
+
+            @try {
+                if ([cell respondsToSelector:@selector(adItem)]) {
+                    currentItem = [cell adItem];
+                }
+            }
+            @catch (...) {
+                return;
+            }
+
+            /*
+             Проверяем, что это всё ещё тот же самый
+             рекламный элемент.
+             */
+            if (currentItem != currentAdItem) {
+                NSLog(@"[LikeeTweak] AD CHANGED - CANCEL");
+                return;
+            }
+
+            BOOL stillAd = NO;
+
+            @try {
+                if ([currentItem respondsToSelector:@selector(isAdItem)]) {
+                    stillAd = [currentItem isAdItem];
+                }
+            }
+            @catch (...) {
+                return;
+            }
+
+            if (!stillAd) {
+                NSLog(@"[LikeeTweak] NO LONGER AD - CANCEL");
+                return;
+            }
+
+            NSLog(@"[LikeeTweak] AUTO SKIP AD");
+
+            @try {
+                if ([cell respondsToSelector:
+                     @selector(videoDetailAdViewControllerDidTapSkip)]) {
+
+                    [cell videoDetailAdViewControllerDidTapSkip];
+                }
+            }
+            @catch (...) {
+                NSLog(@"[LikeeTweak] AUTO SKIP FAILED");
+            }
+        }
+    );
+}
+
+%end
+
+
 #pragma mark -
 #pragma mark Video detail controller hook
 #pragma mark -
