@@ -1223,6 +1223,8 @@ static void LTSkipAdFromCell(UIView *cell)
 {
     %orig;
 
+    id cellObject = (id)self;
+
     BOOL enabled =
         [[NSUserDefaults standardUserDefaults]
             boolForKey:@"LikeeTweakAdFilter"];
@@ -1231,10 +1233,6 @@ static void LTSkipAdFromCell(UIView *cell)
         return;
     }
 
-    /*
-     Используем performSelector, чтобы компилятору
-     не требовалось полное объявление класса.
-    */
     id adItem = nil;
 
     @try {
@@ -1250,18 +1248,16 @@ static void LTSkipAdFromCell(UIView *cell)
         return;
     }
 
-    /*
-     BVAdItem.isAdItem
-     Проверяем через performSelector.
-    */
     BOOL isAd = NO;
 
     @try {
         if ([adItem respondsToSelector:@selector(isAdItem)]) {
+
             NSMethodSignature *signature =
                 [adItem methodSignatureForSelector:@selector(isAdItem)];
 
             if (signature != nil) {
+
                 NSInvocation *invocation =
                     [NSInvocation invocationWithMethodSignature:signature];
 
@@ -1283,7 +1279,7 @@ static void LTSkipAdFromCell(UIView *cell)
 
     NSLog(@"[LikeeTweak] SMART AD DETECTED");
 
-    __weak id weakCell = self;
+    __weak id weakCell = cellObject;
     __weak id weakAdItem = adItem;
 
     dispatch_after(
@@ -1313,9 +1309,6 @@ static void LTSkipAdFromCell(UIView *cell)
                 return;
             }
 
-            /*
-             Реклама должна остаться тем же объектом.
-            */
             if (currentItem != currentAdItem) {
                 NSLog(@"[LikeeTweak] AD CHANGED - CANCEL");
                 return;
@@ -1356,7 +1349,6 @@ static void LTSkipAdFromCell(UIView *cell)
             NSLog(@"[LikeeTweak] AUTO SKIP AD");
 
             @try {
-
                 if ([cell respondsToSelector:
                      @selector(videoDetailAdViewControllerDidTapSkip)]) {
 
@@ -1364,7 +1356,6 @@ static void LTSkipAdFromCell(UIView *cell)
                         performSelector:
                             @selector(videoDetailAdViewControllerDidTapSkip)];
                 }
-
             }
             @catch (...) {
                 NSLog(@"[LikeeTweak] AUTO SKIP FAILED");
