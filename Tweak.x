@@ -1238,8 +1238,8 @@ static void LTSkipAdFromCell(UIView *cell)
     id adItem = nil;
 
     @try {
-        if ([self respondsToSelector:@selector(adItem)]) {
-            adItem = [self performSelector:@selector(adItem)];
+        if ([cellObject respondsToSelector:@selector(adItem)]) {
+            adItem = [cellObject performSelector:@selector(adItem)];
         }
     }
     @catch (...) {
